@@ -29,12 +29,6 @@ import argparse
 def process_args():
     input_args = argparse.ArgumentParser()
 
-    input_args.add_argument("-i","--input_folder",
-    nargs="+",
-    help="give the input folder that contains the processed files as list, make sure you have output.composite_output=False for data processing"
-    )
-    
-
     input_args.add_argument("-g", "--grenade", 
     action="store_true",  
     help="Whether use grenade folder, default is False"
@@ -123,11 +117,24 @@ def main():
     elif args.grenade == False:
         ccList(abs_file_list)
     
-    correlationFile='ccClusterLog.txt'
+    #check correlation file and use abs path
+    if os.path.isfile("ccClusterLog.txt"):
+        correlationFile=os.path.abspath("ccClusterLog.txt")
+        print(f"use correlation file: {correlationFile}")
+    else:
+        print(f"Correlation file does not exist, please check")
+
     CC = Clustering(correlationFile)
     Tree = CC.avgTree()
     etiquets=CC.createLabels()
-    threshold = CC.thrEstimation()
+
+    #check threshold
+    if args.threshold == None:
+        threshold = CC.thrEstimation()
+    else:
+        threshold = args.threshold
+
+    #check file type
     fileType = CC.inputType()
     if fileType=="HKL":
         CC.prepareXSCALE(anomlous,threshold)
@@ -137,6 +144,8 @@ def main():
         CC.preparePointless(anomlous,threshold)
         CC.pointlessRun(anomlous,threshold)
         CC.flatClusterPrinter(threshold, etiquets, anomlous)
+    else:
+        print(f"Unknown input file format, please check the distance file: {correlationFile}")
     
 
 
