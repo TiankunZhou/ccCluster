@@ -74,15 +74,16 @@ G. Santoni and A. Popov, 2015-2019
 #Call to ccCalc if no distances found but files listed
 
 if args.DISTfile is None: 
-    if args.structures is None:
-        print('no inputs specified, please run ccCalc before')
-        exit()
-    else:
-        #Run ccCalc with initial args list
-        #hklin = " ".join(str(x) for x in args.structures)
-        #C = subprocess.Popen('ccCalc -f %s'%(hklin), cwd=os.getcwd())
-        #C = subprocess.Popen('/opt/pxsoft/bin/ccCalc', '-h',cwd=os.getcwd())
-        correlationFile=('ccCluster_log.txt')
+    print('no inputs specified, please run ccCalc before')
+#    if args.structures is None:
+#        print('no inputs specified, please run ccCalc before')
+#        exit()
+#    else:
+#        #Run ccCalc with initial args list
+#        #hklin = " ".join(str(x) for x in args.structures)
+#        #C = subprocess.Popen('ccCalc -f %s'%(hklin), cwd=os.getcwd())
+#        #C = subprocess.Popen('/opt/pxsoft/bin/ccCalc', '-h',cwd=os.getcwd())
+#        correlationFile=('ccCluster_log.txt')
 else:
     correlationFile=args.DISTfile
 
