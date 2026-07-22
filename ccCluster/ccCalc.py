@@ -256,7 +256,10 @@ class ccList():
     """
     def __init__(self, Arglist):
         self.LogFile=open('ccClusterLog.txt', 'w')
-        self.GAfolder = os.mkdir('GA')
+        if os.path.isdir("GA"):
+            pass
+        else:
+            self.GAfolder = os.mkdir('GA')
         self.GAinput = open('GA/codgas.INP', 'w')
         self.CurrentDir= os.getcwd()
         self.argList= Arglist

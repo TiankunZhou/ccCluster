@@ -269,10 +269,10 @@ class Clustering():
             if cluster in self.ToProcess:
                 OUT = open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/XSCALE.INP'%(float(thr),cluster,anomFlag), 'a')
                 Pointless=open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(float(thr),cluster,anomFlag), 'a')
-                print ('INPUT_FILE= ../%s'%(filename), file=OUT)
+                print ('INPUT_FILE= %s'%(filename), file=OUT)
                 #print ('INCLUDE_RESOLUTION_RANGE=20, 1.8', file=OUT)
                 #print ('MINIMUM_I/SIGMA= 0', file=OUT)
-                print ('XDSIN ../%s'%(filename), file= Pointless)
+                print ('XDSIN %s'%(filename), file= Pointless)
                 OUT.close()
                 Pointless.close()
 
@@ -300,7 +300,7 @@ class Clustering():
         for cluster, filename in zip(FlatC,self.labelList):
             if cluster in self.ToProcess:
                 Pointless=open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(float(thr),cluster,anomFlag), 'a')
-                print ('HKLIN ../%s'%(filename), file= Pointless)
+                print ('HKLIN %s'%(filename), file= Pointless)
                 Pointless.close()
 
 #Run XSCALE in the pre-determined folders.
@@ -424,7 +424,7 @@ EOF
             print('FRIEDEL\'S_LAW=TRUE', file=Xscale )
             random.shuffle(xscaleInputFiles)
             for hkl in xscaleInputFiles:
-                print ('INPUT_FILE= ../%s'%(hkl), file=Xscale)
+                print ('INPUT_FILE= %s'%(hkl), file=Xscale)
                 #print ('MINIMUM_I/SIGMA= 0', file=Xscale)        
             P= subprocess.Popen('xscale_par',cwd=self.CurrentDir+'/thr_%.2f_run_%s'%(float(thr),x))     
             P.wait()

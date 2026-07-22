@@ -58,7 +58,7 @@ args= parser.parse_args()
 
 #Startup message
 
-print("""ccCluster - HCA for protein crystallography 
+print(r"""ccCluster - HCA for protein crystallography 
 G. Santoni and A. Popov, 2015
               v .   ._, |_  .,
            `-._\/  .  \ /    |/_
