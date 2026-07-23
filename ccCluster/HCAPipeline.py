@@ -80,18 +80,18 @@ def main():
     else:
         anomlous = "ano"
 
-    #create working dir
+    #create working dir, make it abspath
     workdir = os.path.abspath(f"{args.output_dir}/HCA")
     print(f"ccCluster output directory would be : {workdir}")
     if os.path.isdir(workdir):
         print(f"Output folder exists: {workdir}")
-        print(f"moving into output folder")
-        os.chdir(workdir)
+        #print(f"moving into output folder")
+        #os.chdir(workdir)
     else:
         print(f"Creating output folder: {workdir}")
         os.makedirs(workdir)
-        print(f"moving into output folder")
-        os.chdir(workdir)
+        # print(f"moving into output folder")
+        # os.chdir(workdir)
 
     #set up the job
     if args.grenade == True:        
@@ -112,19 +112,20 @@ def main():
         #print(f"successlist: {success}")
         abs_success = [os.path.abspath(f) for f in success if os.path.isfile(f) ]
         print(f"abs_path_list: {abs_success}")
-        ccList(success)
+        ccList(success, workdir)
 
     elif args.grenade == False:
-        ccList(abs_file_list)
+        ccList(abs_file_list, workdir)
     
     #check correlation file and use abs path
-    if os.path.isfile("ccClusterLog.txt"):
-        correlationFile=os.path.abspath("ccClusterLog.txt")
+    if os.path.isfile(f"{workdir}/ccClusterLog.txt"):
+        correlationFile=f"{workdir}/ccClusterLog.txt" # it should be already an abs path
         print(f"use correlation file: {correlationFile}")
     else:
         print(f"Correlation file does not exist, please check")
 
-    CC = Clustering(correlationFile)
+    #set up the job
+    CC = Clustering(correlationFile, workdir)
     Tree = CC.avgTree()
     etiquets=CC.createLabels()
 
@@ -135,15 +136,32 @@ def main():
         threshold = args.threshold
 
     #check file type
+    CC.checkMultiplicity(threshold)
     fileType = CC.inputType()
     if fileType=="HKL":
-        CC.prepareXSCALE(anomlous,threshold)
-        CC.scaleAndMerge(anomlous,threshold)
-        CC.flatClusterPrinter(threshold, etiquets, anomlous)
+        #prepare and run XSCALE job
+        xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold)
+        if xscale_checker == True:
+            CC.scaleAndMerge(anomlous, threshold, xscale_path)
+            #get jason from XSCALE
+            CC.flatClusterPrinter(threshold, etiquets, anomlous, xscale_path)
+
+        #prepare and run Pointless
+        pointless_checker, pointless_path = CC.preparePointless(anomlous,threshold)
+        if pointless_checker == True:
+            CC.pointlessRun(anomlous, threshold, pointless_path)
+            #prepare and run aimless
+            CC.aimlessRun(anomlous, threshold, pointless_path)
+
+        #CC.passOInfoToGA(threshold, etiquets, anomlous)
     elif fileType=="mtz":
-        CC.preparePointless(anomlous,threshold)
-        CC.pointlessRun(anomlous,threshold)
-        CC.flatClusterPrinter(threshold, etiquets, anomlous)
+        #prepare and run Pointless
+        pointless_checker, pointless_path = CC.preparePointless(anomlous,threshold)
+        if pointless_checker == True:
+            CC.pointlessRun(anomlous, threshold, pointless_path)
+            #prepare and run aimless
+            CC.aimlessRun(anomlous, threshold, pointless_path)
+            CC.flatClusterPrinter(threshold, etiquets, anomlous, pointless_path)
     else:
         print(f"Unknown input file format, please check the distance file: {correlationFile}")
     

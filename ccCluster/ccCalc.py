@@ -254,14 +254,15 @@ class ccList():
     This class is used to calculate distances based on the cc between the datasets.
     it works with a list input files from args.parser
     """
-    def __init__(self, Arglist):
-        self.LogFile=open('ccClusterLog.txt', 'w')
-        if os.path.isdir("GA"):
+    def __init__(self, Arglist, run_dir:str):
+        self.RunDir=os.path.abspath(run_dir)
+        self.LogFile=open(f"{self.RunDir}/ccClusterLog.txt", 'w')
+        if os.path.isdir(f"{self.RunDir}/GA"):
             pass
         else:
-            self.GAfolder = os.mkdir('GA')
-        self.GAinput = open('GA/codgas.INP', 'w')
-        self.CurrentDir= os.getcwd()
+            self.GAfolder = os.makedirs(f"{self.RunDir}/GA")
+        self.GAinput = open(f"{self.RunDir}/GA/codgas.INP", 'w')
+        #self.CurrentDir= os.getcwd()
         self.argList= Arglist
         self.Arrays= self.loadReflections()
         self.results = self.calcSerial()
