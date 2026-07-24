@@ -439,7 +439,6 @@ class Clustering():
                     with open(aimless_file, "a") as f1:
                         f1.write(textwrap.dedent(f"""\
                                                 #!/bin/bash
-                                                module load ccp4
 
                                                 aimless HKLIN {infile} << EOF
                                                 HKLOUT {setname}_aimless.mtz
