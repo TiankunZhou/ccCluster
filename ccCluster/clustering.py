@@ -284,7 +284,7 @@ class Clustering():
 
             #check whether XSCALE.INP exists and skik the job if exists
             if os.path.isfile(XSCALE_file):
-                print(f"XSCALE.INP exist: {XSCALE_file}\nWill pass the XSCALE process. Please reomve the file/folder is you want to re-run the job")
+                print(f"XSCALE.INP exist: {XSCALE_file}\nWill pass the XSCALE process. Please reomve the file/folder if you want to re-run the job")
                 return False, None
             else:
                 #Create XSCALE.INP setups
@@ -324,7 +324,7 @@ class Clustering():
 
             #Check whether launch_pointless exists
             if os.path.isfile(Pointless_file):
-                print(f"launch_pointless.sh exist: {Pointless_file}\nWill pass the XSCALE process. Please reomve the file/folder is you want to re-run the job")
+                print(f"launch_pointless.sh exist: {Pointless_file}\nWill pass the Pointless process. Please reomve the file/folder if you want to re-run the job")
                 return False, None
             else:
                 with open(Pointless_file, 'a') as Pointless:

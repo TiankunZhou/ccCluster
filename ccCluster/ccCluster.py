@@ -19,6 +19,7 @@ import subprocess
 from .clustering import Clustering
 # Insert parse  to change the file path from command line
 import argparse
+import textwrap
 #Startup message
 
 print(r"""ccCluster - HCA for protein crystallography
@@ -84,6 +85,16 @@ def process_args():
     #set working folder
     if args.output_dir == None:
         args.output_dir = os.getcwd()
+
+    #check whether processing type is there
+    if not args.process and not args.count and not args.estimation:
+        print(textwrap.dedent(f"""\
+                                    Did not select how to process the data
+                                    use -p for processing
+                                    -c to calculate the biggest cluster
+                                    and -e to estimate threshold"""
+                            ))
+        exit()
 
     #return args
     return args
