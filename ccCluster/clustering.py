@@ -251,7 +251,7 @@ class Clustering():
     #input files
     #!!!! Will need to define the processes to run externally
     #renaming function! Edit the calls in ccCluster accordingly
-    def prepareXSCALE(self, anomFlag, thr):
+    def prepareXSCALE(self, anomFlag, thr, **kwargs):
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance') #takes threshold here to clustter the files
         print(f"FlactC is: {FlatC}")
         counter=collections.Counter(FlatC)
@@ -295,9 +295,15 @@ class Clustering():
                         Xscale.write(f"FRIEDEL\'S_LAW= FALSE\n")
                     elif anomFlag=='no_ano':
                         Xscale.write(f"FRIEDEL\'S_LAW= TRUE\n")
+                    if kwargs.get("refHKL"):
+                        reference_HKL = os.path.abspath(kwargs["refHKL"])
+                        print(f"Reference HKL file exists, added to XSCALE.INP: {reference_HKL}")
+                        Xscale.write(f"REFERENCE_DATA_SET= {reference_HKL}\n")
+                    else:
+                        print(f"No optional reference HKL for XSCALE, continue")
 
-                #put HKL files for merging in the XSCALE.INP It should be OK to line in the self.Toprocess loop
-                # as there is only one item in [Best]
+                    #put HKL files for merging in the XSCALE.INP It should be OK to line in the self.Toprocess loop
+                    # as there is only one item in [Best]
                     for cluster, filename in zip(FlatC, self.labelList):
                         if cluster == self.Best:
                             Xscale.write(f"INPUT_FILE= {filename}\n")

@@ -55,7 +55,11 @@ def process_args():
     action="store_true",
     help = "Whether it is anomalous data, default is False",
     )
-
+    
+    input_args.add_argument("-ref", "--reference_HKL",
+    type = str,
+    help="Give an optional reference HKL file for XSCALE merging, recommend to give absolute path"
+    )
     #save args
     args = input_args.parse_args()
 
@@ -140,7 +144,12 @@ def main():
     fileType = CC.inputType()
     if fileType=="HKL":
         #prepare and run XSCALE job
-        xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold)
+        if args.reference_HKL == None:
+            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold)
+        elif os.path.isfile(args.reference_HKL):
+            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, refHKL=args.reference_HKL)
+        else:
+            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold)
         if xscale_checker == True:
             CC.scaleAndMerge(anomlous, threshold, xscale_path)
             #get jason from XSCALE
