@@ -84,23 +84,23 @@ class resultsTab(QtWidgets.QWidget):
         self.barLayout= QtWidgets.QHBoxLayout(self.buttonBar)
 
         self.ccVsR= QtWidgets.QPushButton()
-        self.ccVsR.setText(_fromUtf8("Compl. vs Res"))
+        self.ccVsR.setText("Compl. vs Res")
         self.ccVsR.clicked.connect(lambda:self.plotStats(0,4,"Compl. vs Res" ))
 
         self.compVsR= QtWidgets.QPushButton()
-        self.compVsR.setText(_fromUtf8("cc vs Res"))
+        self.compVsR.setText("cc vs Res")
         self.compVsR.clicked.connect(lambda:self.plotStats(0,10,"cc vs Res" ))
 
         self.RobsVsR= QtWidgets.QPushButton()
-        self.RobsVsR.setText(_fromUtf8("Robs vs Res"))
+        self.RobsVsR.setText("Robs vs Res")
         self.RobsVsR.clicked.connect(lambda:self.plotStats(0,5, "Robs vs Res" ))
 
         self.IsigmaVsR= QtWidgets.QPushButton()
-        self.IsigmaVsR.setText(_fromUtf8("I/sigmaI vs Res"))
+        self.IsigmaVsR.setText("I/sigmaI vs Res")
         self.IsigmaVsR.clicked.connect(lambda:self.plotStats(0,8,"I/sigmaI vs Res" ))
 
         self.SanoVsR= QtWidgets.QPushButton()
-        self.SanoVsR.setText(_fromUtf8("Sig. Ano. vs Res"))
+        self.SanoVsR.setText("Sig. Ano. vs Res")
         self.SanoVsR.clicked.connect(lambda:self.plotStats(0,12,"Sig. Ano. vs Res" ))
 
         self.barLayout.addWidget(self.ccVsR)

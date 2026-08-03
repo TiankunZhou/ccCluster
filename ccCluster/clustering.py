@@ -217,6 +217,7 @@ class Clustering():
         Best = max(counter.items(), key=operator.itemgetter(1))[0]
         print('You are clustering with a threshold of %s'%(thr))
         print('The biggest cluster contains %s datasets from a total of %s'%(counter[Best], len(self.labelList)))
+        return Best, counter[Best], len(self.labelList)
 
 
     def completenessEstimation(self):

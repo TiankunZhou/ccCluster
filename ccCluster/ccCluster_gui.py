@@ -76,7 +76,7 @@ def process_args():
     
     #input_args.add_argument("-f", dest="structures", default= None ,  type=str, nargs='+', help='The list of refined structures to merge')
     #input_args.add_argument("-o","--outname", dest="outname", default='Dendrogram', help="output dendogram file name")
-    
+    """
     input_args.add_argument("-t", "--threshold", 
     dest="threshold", 
     help="Distance threshold for clustering"
@@ -95,7 +95,7 @@ def process_args():
     default=False, 
     help="Tries to guess an optimal threshold value"
     )
-
+    """
     input_args.add_argument("-wd", "--work_dir",
     type = str,
     help = "output directory, default is pwd",
@@ -132,8 +132,9 @@ class tab_ccCal(QWidget):
         #get real time update
         self.realTimeUpdate = realTimeUpdates
 
-        #set initial work dir as pwd
+        #set initial work dir as pwd and pass it to shared place
         self.WorkDir = os.getcwd()
+        self.realTimeUpdate.updateWorkDir(self.WorkDir)
 
         #vertical layout
         self.ccCal_layout = QtWidgets.QVBoxLayout(self)
@@ -160,7 +161,7 @@ class tab_ccCal(QWidget):
         #self.WorkDir_entry.setPlaceholderText("Please select a work dir")
         #update changes in the WorkDir entry in real time
 
-        self.WorkDir_entry.textChanged.connect(self.updateWorkDir)
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdat.updateWorkDir)
         #check ccClusterlog.txt when change the work dir:
         self.WorkDir_entry.textChanged.connect(self.check_ccCalLogStatus)
 
@@ -286,11 +287,6 @@ class tab_ccCal(QWidget):
             self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
 
 
-    #update workDir
-    def updateWorkDir(self, text):
-        self.realTimeUpdate.shareWorkDir = text
-
-
 
 #define Class for the tab for ccClustering
 #tabs for result and summary are generated 
@@ -298,38 +294,122 @@ class tab_ccCal(QWidget):
 class tab_ccCluster(QWidget):
     def __init__(self, realTimeUpdates:MainWindow, **kwargs):
         super()__init__()
-        self.main_canvas = QHBoxLayout(self)
+
+        #get real time update
+        self.realTimeUpdate = realTimeUpdates
+
+        #vertical layout
+        self.ccCal_layout = QtWidgets.QVBoxLayout(self)
 
         #set up buttons
-        self.ccCluster_buttons()
+        self.ccClusterSetup()
         #set up plot area
-        self.ccCluster_plot_area()
+        self.ccClusterPlot()
 
         #other parameters
-        self.counter =1
+
+        #Add widget to the layout
+        self.ccCal_layout.addWidget(self.ccClusterSetup, 1)
+        self.ccCal_layout.addWidget(self.ccClusterPlot, 4)
 
 
-    #set up the buttons for ccCluster
-    def ccCluster_buttons(self):
+    #setups for ccCluster
+    def ccClusterSetup(self):
+        #Define widget
+        self.general_widget = QtWidgets.QWidget()
+
         #buttons create Dendrogram
         self.PlotButton = QtWidgets.QPushButton(self.verticalLayoutWidget)
-        self.PlotButton.setObjectName(_fromUtf8("PlotButton"))
+        self.PlotButton.setObjectName("PlotButton")
         self.PlotButton.clicked.connect(self.createDendrogram)
 
-        #button to run ccCluster
+        #status bar and button to run ccCluster
+        self.ccClusterLogPath_text = QtWidgets.QLineEdit()
+        if os.path.isfile(f"{self.realTimeUpdate.shareWorkDir}/ccClusterLog.txt"):
+            self.ccClusterLogPath_text.setText(f"{self.realTimeUpdate.shareWorkDir}/ccClusterLog.txt")
+        else:
+            self.ccClusterLogPath_text.setPlaceholderText(f"No ccClusterLog.txt in working Dir, please change working dir or generate one")
+        self.insert_ccClusterLogPath = QtWidgets.QPushButton("select log file")
+        self.insert_ccClusterLogPath.clicked.connect(self.select_ccClusterLogPath)
 
-        #button to show auto threshold result
+        #status bar to show information
+        self.ccClusterStatusBar = QtWidgets.Qlabel()
+        self.update_ccClusterStatusBar("ready")
+
+        #button to show auto threshold result and add it to the Threshold line
+        #also show the largest group the default threshold
+        self.ShowThreshold = QtWidgets.QLineEdit()
+        self.ShowThreshold.setPlaceholderText("Put threshod or click Auto Threshold")
+        self.AutoThreshols = QtWidgets.QPushButton("Auto Threshold")
+        self.AutoThreshols.clicked.connect(self.getAutoThreshold)
 
         #button to show the largest group number with current threshold
+        self.showLargestGroup = QtWidgets.QPushButton("Auto Threshold")
+        self.showLargestGroup.clicked.connect(self.getLargestGroup)
 
+
+    #plot the Dendrogram and SCALE.LP statistics in different sub-tabs
+    def plorDandroAndStatistic(self):
+        raise NotImplementedError
+        #Create tabs for each merged results
+        #Creast tabs for Dendrogram and statistics
+
+
+    #Set up runnig status
+    def setccClusterStatus(self):
+        pass
+
+
+    #Add ccCluster log path is needed
+    def select_ccClusterLogPath(self):
+        file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select ccCluster log File", "", "ccCluster Log Files (*.txt);;All Files (*)")
+
+        if file_path:
+            self.WorkDir_entry.setText(os.path.abspath(file_path))
+
+    #Auto elect ccCluster log file if exists in work Dir
+    def auto_select_ccClusterLogPath(self):
+        ccClusterLog = os.path.join(self.workDir.text(), "ccClusterLog.txt")
+
+        #update the ccClusterLog.txt status
+        if os.path.isfile(ccClusterLog):
+            self.ccCallog_status.setText(f"ccClusterLog.txt found: {ccClusterLog}")
+            self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
+        else:
+            self.ccCallog_status.setText(f"ccClusterLog.txt not found in {self.workDir.text()}. Please generate one or select a diffenent path")
+            self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
+    
+    #update ccCluster bar:
+    def update_ccClusterStatusBar(self, status:str):
+        self.ccClusterStatusBar.setText(f"{status}")
+        #self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
+
+    
+    #auto define thershold
+    def getAutoThreshold(self):
+        Threshold = self.realTimeUpdate.CC.thrEstimation() # need change
+        self.ShowThreshold.set(Threshold)
+        GroupNum, largestGroup, totalHKL = seld.realTimeUpdate.CC.checkMultiplicity(Threshold) #need change
+        self.update_ccClusterStatusBar(f"Auto Threshold is {Threshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
+
+
+    #Show largest cluster
+    def getLargestGroup(self):
+        if self.ShowThreshold:
+             GroupNum, largestGroup, totalHKL = seld.realTimeUpdate.CC.checkMultiplicity(self.ShowThreshold) # need change
+             self.update_ccClusterStatusBar(f"Auto Threshold is {self.ShowThreshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
+        else:
+            self.update_ccClusterStatusBar(f"Please input a threshold value")
+
+
+
+
+    #old not use
     def setupUi(self, MainWindow):
         global Tree
         global threshold
         global etiquets
         self.counter = 1
-        MainWindow.setObjectName(_fromUtf8("MainWindow"))
-        MainWindow.setWindowTitle("Cluster and merge")
-        MainWindow.resize(1215, 1000)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.processedValues = []
         self.threshold = threshold
@@ -426,6 +506,7 @@ class tab_ccCluster(QWidget):
         #Show previous results
         # to be removed from the setupUi class
         ###########
+        """
         self.alreadyDone= []
         if os.path.isfile(os.getcwd()+'/.cc_cluster.log'):
             with open(os.getcwd()+'/.cc_cluster.log') as log:
@@ -445,6 +526,7 @@ class tab_ccCluster(QWidget):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
 
+
     def retranslateUi(self, MainWindow):
         MainWindow.setWindowTitle(_translate("MainWindow", "Cluster and Merge", None))
         self.PlotButton.setText(_translate("MainWindow", "Plot Dendrogram", None))
@@ -454,6 +536,18 @@ class tab_ccCluster(QWidget):
         self.summaryButton.setText(_translate("MainWindow", "Summary", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.TreeCanvas), _translate("MainWindow", "Dendrogram", None))
         #self.tabWidget.setTabText(self.tabWidget.indexOf(self.clusterTab), _translate("MainWindow", "Clustering result", None))
+
+    """
+    #check and show result
+    def CheckAndShowResult (self):
+        self.MergeResult = []
+        abs_FolderPaths = Path(self.realTimeUpdate.shareWorkDir)
+        for folder_path in abs_FolderPaths.glob(f"cc_Cluster_*"):
+            if folder_path.is_dir():
+                if (folder_path/"XSCALE.LP").is_file():
+                    self.MergeResult.append(folder_name)
+                else:
+                    print(f"{colors.RED}No XSCALE.LP in folder: {folder_path}{colors.ENDC}")
 
 
     def showSummary(self):
@@ -482,6 +576,7 @@ class tab_ccCluster(QWidget):
         self.threshold = float(text)
 
 
+    #submit ccCluster processing jobs
     def processClusters(self):
         Log = open(self.CurrentDir+'/.cc_cluster.log', 'a')
 
@@ -560,7 +655,7 @@ class tab_ccCluster(QWidget):
 
 
 
-class tab_compare():
+class tab_plotStats():
     def __init__(self, realTimeUpdates:MainWindow, **kwargs):
         super().__init__()
         
@@ -569,22 +664,43 @@ class tab_compare():
 
 #put the tabs to gether in one GUI
 class MainWindow(QtWidgets.QMainWindow):
-    def __init__(self):
-        pass
-
+    def __init__(self, **kwargs):
         #make one or several linEdit or textEdit accessable to all tabs in realtime
         self.shareWorkDir = ""
 
         ###pass the self of MainWindow to the tabs as argument
         ###to enalbe realtime update on lineEdit
         self.Tab_ccCal = tab_ccCal(self)
-        self.Tab_ccCluster = tab.ccCluster(self)
-        self.Tab_compare = tab_compare(self)
+        self.Tab_ccCluster = tab_ccCluster(self)
+        self.Tab_plotStats = tab_plotStats(self)
 
         #add tabs
         self.tabWidget.addTab(self.Tab_ccCal, "ccCal tab")
         self.tabWidget.addTab(self.Tab_ccCluster, "ccCluster tab")
         self.tabWidget.addTab(self.Tab_compare, "Compare merging result tab")
+
+        #Set up main window
+        MainWindow.setObjectName("MainWindow")
+        MainWindow.setWindowTitle("Cluster and merge")
+        MainWindow.resize(1600, 1200)
+    
+    #update workDir, put it here to avoid duplication of same function
+    #use it in other class: self.realTimeUpdate.updateWorkDit(WorkDir)
+    def updateWorkDir(self, text):
+        abs_dir = os.path.abspath(text)
+        if os.path.isdir(abs_dir):
+            self.shareWorkDir = abs_dir
+        else:
+            print(f"{colors.RED}Update work dir failed, input dir does not exist: {abs_dir}{clolors.ENDC}")
+    
+
+    #set up clustering scripts:
+    def setupCC(self, correlationFile:str):
+        CC = Clustering(correlationFile, self.shareWorkDir)
+        Tree = CC.avgTree()
+        etiquets=CC.createLabels()
+        return CC, Tree, etiquets
+
 
 
 #Main part of the program
@@ -593,30 +709,12 @@ class MainWindow(QtWidgets.QMainWindow):
 #count the multiplicity of the highest cluster
 #run the interface
 def main():
-    args = process_args()
+    app = QApplication(sys.argv)
+    ex = MainWindow()
+    ex.show()
+    sys.exit(app.exec_())      
 
 
-    #get the processing scripts and initial settings
-    WorkDir = os.getcwd()
-    CC = Clustering(correlationFile, WorkDir)
-    Tree = CC.avgTree()
-    etiquets=CC.createLabels()
-    threshold = CC.thrEstimation()
-    if args.threshold:
-        threshold = args.threshold
-    else:
-        threshold= CC.thrEstimation()
-
-    if args.count:
-        CC.checkMultiplicity(threshold)
-    elif args.est:
-        a = CC.thrEstimation()
-        print(a)
-    else:
-        app = QApplication(sys.argv)
-        ex = MainWindow()
-        ex.show()
-        sys.exit(app.exec_())      
-
+#run the GUI
 if __name__== '__main__':
     main()
