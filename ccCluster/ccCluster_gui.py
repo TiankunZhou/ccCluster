@@ -2,7 +2,7 @@
 from __future__ import print_function, absolute_import
 
 __author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 20150-2019"
+__copyright__ = "Copyright 2015-2019"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
@@ -28,6 +28,7 @@ import os
 from .resultsTab import resultsTab
 from .summary import resultsSummary
 from .clustering import Clustering
+from .ccCalc import ccList
 
 #Insert parse  to change the file path from command line
 import argparse
@@ -148,7 +149,7 @@ class tab_ccCal(QWidget):
         #Add widget to the layout
         self.ccCal_layout.addWidget(self.general_widget, 1)
         self.ccCal_layout.addWidget(self.ccCal_widget, 4)
-    
+
 
     #define general area
     def general_area(self):
@@ -161,7 +162,7 @@ class tab_ccCal(QWidget):
         #self.WorkDir_entry.setPlaceholderText("Please select a work dir")
         #update changes in the WorkDir entry in real time
 
-        self.WorkDir_entry.textChanged.connect(self.realTimeUpdat.updateWorkDir)
+        self.WorkDir_entry.textChanged.connect(lambda: self.realTimeUpdat.updateWorkDir(self.WorkDir_entry.text()))
         #check ccClusterlog.txt when change the work dir:
         self.WorkDir_entry.textChanged.connect(self.check_ccCalLogStatus)
 
@@ -250,9 +251,9 @@ class tab_ccCal(QWidget):
         elif not of.path.isdir(self.realTimeUpdate.shareWorkDir):
             print(f"{color.RED}Working dir does not exist, please check: {self.realTimeUpdate.shareWorkDir}{colors.ENDC}")
         elif not HKL_list:
-            print(f"{colors.RED}No HKL file list, please check HKL paths{color.ENDC}")
+            print(f"{colors.RED}No HKL file list, please check HKL paths{colors.ENDC}")
         else:
-            print(f"{colors.RED}Unknow problem with ccCal input HKLs or working dir, please check{color.ENDC}")
+            print(f"{colors.RED}Unknow problem with ccCal input HKLs or working dir, please check{colors.ENDC}")
         
         #check ccClusterLog.txt after generation
         self.check_ccCalLogStatus()
@@ -275,15 +276,15 @@ class tab_ccCal(QWidget):
 
 
     #check whether ccClusterlog.txt exists in the work dir
-    def check_ccCalLogStatus():
-        ccClusterLog = os.path.join(self.workDir.text(), "ccClusterLog.txt")
+    def check_ccCalLogStatus(self):
+        ccClusterLog = os.path.join(self.realTimeUpdate.shareWorkDir, "ccClusterLog.txt")
 
         #update the ccClusterLog.txt status
         if os.path.isfile(ccClusterLog):
             self.ccCallog_status.setText(f"ccClusterLog.txt found: {ccClusterLog}")
             self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
         else:
-            self.ccCallog_status.setText(f"ccClusterLog.txt not found in {self.workDir.text()}. Please generate one or select a diffenent path")
+            self.ccCallog_status.setText(f"ccClusterLog.txt not found in {self.realTimeUpdate.shareWorkDir}. Please generate one or select a diffenent path")
             self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
 
 
@@ -293,7 +294,7 @@ class tab_ccCal(QWidget):
 #through different modules
 class tab_ccCluster(QWidget):
     def __init__(self, realTimeUpdates:MainWindow, **kwargs):
-        super()__init__()
+        super().__init__()
 
         #get real time update
         self.realTimeUpdate = realTimeUpdates
@@ -302,26 +303,21 @@ class tab_ccCluster(QWidget):
         self.ccCal_layout = QtWidgets.QVBoxLayout(self)
 
         #set up buttons
-        self.ccClusterSetup()
+        self.ccClusterSetup_area()
         #set up plot area
-        self.ccClusterPlot()
+        self.plotDendroAndStatistic_area()
 
         #other parameters
 
         #Add widget to the layout
-        self.ccCal_layout.addWidget(self.ccClusterSetup, 1)
-        self.ccCal_layout.addWidget(self.ccClusterPlot, 4)
+        self.ccCal_layout.addWidget(self.ccClusterSetup_widget, 1)
+        self.ccCal_layout.addWidget(self.plotDendroAndStatistic_widget, 4)
 
 
     #setups for ccCluster
-    def ccClusterSetup(self):
+    def ccClusterSetup_area(self):
         #Define widget
-        self.general_widget = QtWidgets.QWidget()
-
-        #buttons create Dendrogram
-        self.PlotButton = QtWidgets.QPushButton(self.verticalLayoutWidget)
-        self.PlotButton.setObjectName("PlotButton")
-        self.PlotButton.clicked.connect(self.createDendrogram)
+        self.ccClusterSetup_widget = QtWidgets.QWidget()
 
         #status bar and button to run ccCluster
         self.ccClusterLogPath_text = QtWidgets.QLineEdit()
@@ -332,10 +328,6 @@ class tab_ccCluster(QWidget):
         self.insert_ccClusterLogPath = QtWidgets.QPushButton("select log file")
         self.insert_ccClusterLogPath.clicked.connect(self.select_ccClusterLogPath)
 
-        #status bar to show information
-        self.ccClusterStatusBar = QtWidgets.Qlabel()
-        self.update_ccClusterStatusBar("ready")
-
         #button to show auto threshold result and add it to the Threshold line
         #also show the largest group the default threshold
         self.ShowThreshold = QtWidgets.QLineEdit()
@@ -344,20 +336,55 @@ class tab_ccCluster(QWidget):
         self.AutoThreshols.clicked.connect(self.getAutoThreshold)
 
         #button to show the largest group number with current threshold
-        self.showLargestGroup = QtWidgets.QPushButton("Auto Threshold")
-        self.showLargestGroup.clicked.connect(self.getLargestGroup)
+        self.ShowLargestGroup = QtWidgets.QLineEdit()
+        self.ShowLargestGroup.setPlaceholderText("Show largest group with current threshold")
+        self.CheckLargestGroup = QtWidgets.QPushButton("Check Largest Group")
+        self.CheckLargestGroup.clicked.connect(self.getLargestGroup)
+
+        #anomalous flag
+        self.anomBox = QtWidgets.QCheckBox("Anomalous data")
+        self.anomBox.setChecked(False)
+
+        #status bar to show information and button to run ccCluster job
+        self.ccClusterStatusBar = QtWidgets.Qlabel()
+        self.update_ccClusterStatusBar("ready to work")
+        self.RunccCluster = QtWidgets.QPushButton("Run ccCluster")
+        self.RunccCluster.clicked.connect(self.submit_ccCluster)
+
+        #create main layout
+        layout = QtWidgets.QVBoxLayout(self.ccClusterSetup_widget)
+
+        #put ccClusterLogPath and button together
+        ccClusterLogLayout = QtWidgets.QHBoxLayout()
+        ccClusterLogLayout.addWidget(self.ccClusterLogPath_text, 4)     
+        ccClusterLogLayout.addWidget(self.insert_ccClusterLogPath, 1)
+
+        #put AutoThreshold and show largest group together
+        AutoThresholsLayout = QtWidgets.QHBoxLayout()
+        AutoThresholsLayout.addWidget(self.ShowThreshold, 2)
+        AutoThresholsLayout.addWidget(self.AutoThreshols, 1)
+        AutoThresholsLayout.addWidget(self.ShowLargestGroup, 2)
+        AutoThresholsLayout.addWidget(self.CheckLargestGroup, 1)
+        AutoThresholsLayout.addWidget(self.anomBox, 1)
+
+        #put status bar and merge button together
+        StatusBarLayout = QtWidgets.QHBoxLayout()
+        StatusBarLayout.addWidget(self.ccClusterStatusBar, 4)
+        StatusBarLayout.addWidget(self.RunccCluster, 1)
+        #pack everything in the layout
+        layout.addLayout(ccClusterLogLayout)
+        layout.addLayout(AutoThresholsLayout)
+        layout.addLayout(StatusBarLayout)
+        layout.addWidget(self.run_ccCal)
 
 
     #plot the Dendrogram and SCALE.LP statistics in different sub-tabs
-    def plorDandroAndStatistic(self):
-        raise NotImplementedError
+    def plotDendroAndStatistic_area(self):
+        #define widget
+        self.plotDendroAndStatistic_widget = QtWidgets.QWidget()
+
         #Create tabs for each merged results
         #Creast tabs for Dendrogram and statistics
-
-
-    #Set up runnig status
-    def setccClusterStatus(self):
-        pass
 
 
     #Add ccCluster log path is needed
@@ -378,7 +405,8 @@ class tab_ccCluster(QWidget):
         else:
             self.ccCallog_status.setText(f"ccClusterLog.txt not found in {self.workDir.text()}. Please generate one or select a diffenent path")
             self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
-    
+
+
     #update ccCluster bar:
     def update_ccClusterStatusBar(self, status:str):
         self.ccClusterStatusBar.setText(f"{status}")
@@ -387,36 +415,84 @@ class tab_ccCluster(QWidget):
     
     #auto define thershold
     def getAutoThreshold(self):
-        Threshold = self.realTimeUpdate.CC.thrEstimation() # need change
-        self.ShowThreshold.set(Threshold)
-        GroupNum, largestGroup, totalHKL = seld.realTimeUpdate.CC.checkMultiplicity(Threshold) #need change
-        self.update_ccClusterStatusBar(f"Auto Threshold is {Threshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
+        CC, _, _, statue_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        if CC is None:
+            self.update_ccClusterStatusBar(statue_text)
+        else:
+            Threshold = CC.thrEstimation()
+            self.ShowThreshold.set(Threshold)
+            GroupNum, largestGroup, totalHKL = CC.checkMultiplicity(Threshold)
+            self.update_ccClusterStatusBar(f"Auto Threshold is {Threshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
 
 
     #Show largest cluster
     def getLargestGroup(self):
-        if self.ShowThreshold:
-             GroupNum, largestGroup, totalHKL = seld.realTimeUpdate.CC.checkMultiplicity(self.ShowThreshold) # need change
-             self.update_ccClusterStatusBar(f"Auto Threshold is {self.ShowThreshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
+        CC, _, _, status_text= self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        if CC is None:
+            self.update_ccClusterStatusBar(status_text)
         else:
-            self.update_ccClusterStatusBar(f"Please input a threshold value")
+            if self.ShowThreshold:
+                GroupNum, largestGroup, totalHKL = CC.checkMultiplicity(self.ShowThreshold) # need change
+                self.update_ccClusterStatusBar(f"Auto Threshold is {self.ShowThreshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
+            else:
+                self.update_ccClusterStatusBar(f"Please input a threshold value")
+
+    #submit ccCluster job
+    def submit_ccCluster(self):
+        CC, Tree, etiquets, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        threshold = self.ShowThreshold.text()
+        if CC is None:
+            self.update_ccClusterStatusBar(status_text)
+        else:
+            #check file type
+            fileType = CC.inputType()
+            #check anomalous flag
+            if self.anomBox.isChecked():
+                anomlous = "ano"
+            else:
+                anomlous = "no_ano"
+
+            if fileType=="HKL":
+                #prepare and run XSCALE job
+                if args.reference_HKL == None:
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold)
+                elif os.path.isfile(args.reference_HKL):
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, refHKL=args.reference_HKL)
+                else:
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold)
+                if xscale_checker == True:
+                    self.update_ccClusterStatusBar(f"Running XSCALE job in {xscale_path}")
+                    CC.scaleAndMerge(anomlous, threshold, xscale_path)
+                    #get jason from XSCALE
+                    CC.flatClusterPrinter(threshold, etiquets, anomlous, xscale_path)
+
+                #prepare and run Pointless
+                pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold)
+                if pointless_checker == True:
+                    self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}")
+                    CC.pointlessRun(anomlous, threshold, pointless_path)
+                    #prepare and run aimless
+                    self.update_ccClusterStatusBar(f"Running Aimless job in {xscale_path}, please be patient")
+                    CC.aimlessRun(anomlous, threshold, pointless_path)
+
+            #CC.passOInfoToGA(threshold, etiquets, anomlous)
+            elif fileType=="mtz":
+                #prepare and run Pointless
+                pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold)
+                if pointless_checker == True:
+                    self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}")
+                    CC.pointlessRun(anomlous, threshold, pointless_path)
+                    #prepare and run aimless
+                    self.update_ccClusterStatusBar(f"Running Aimless job in {xscale_path}, please be patient")
+                    CC.aimlessRun(anomlous, threshold, pointless_path)
+                    CC.flatClusterPrinter(threshold, etiquets, anomlous, pointless_path)
+            else:
+                self.update_ccClusterStatusBar(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
+                print(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
 
 
-
-
+"""
     #old not use
-    def setupUi(self, MainWindow):
-        global Tree
-        global threshold
-        global etiquets
-        self.counter = 1
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
-        self.processedValues = []
-        self.threshold = threshold
-        self.CurrentDir = os.getcwd()
-        self.etiquets= etiquets
-
-
         ###########
         #Buttons Widget:
         #to contain all the buttons and inputs
@@ -501,7 +577,7 @@ class tab_ccCluster(QWidget):
         self.statusbar.setObjectName(_fromUtf8("statusbar"))
         self.statusbar.showMessage('Ready!')
         MainWindow.setStatusBar(self.statusbar)
-
+"""
         ##########
         #Show previous results
         # to be removed from the setupUi class
@@ -538,6 +614,7 @@ class tab_ccCluster(QWidget):
         #self.tabWidget.setTabText(self.tabWidget.indexOf(self.clusterTab), _translate("MainWindow", "Clustering result", None))
 
     """
+
     #check and show result
     def CheckAndShowResult (self):
         self.MergeResult = []
@@ -561,97 +638,8 @@ class tab_ccCluster(QWidget):
         self.TreeCanvas.draw()
 
 
-    def getThreshold(self,event):
-        self.coord = 0
-        if event.ydata != None:
-            self.coord = event.ydata
-            #self.textOutput.append('Threshold is %s'%(self.coord))
-            #self.thr = event.ydata
-            self.threshold= float('%.2f'%(event.ydata))
-            self.createDendrogram()
-            self.statusbar.showMessage('New threshold value: %.2f'%(self.threshold))
-
-
     def onChanged(self, text):
         self.threshold = float(text)
-
-
-    #submit ccCluster processing jobs
-    def processClusters(self):
-        Log = open(self.CurrentDir+'/.cc_cluster.log', 'a')
-
-        Clusters = hierarchy.fcluster(Tree, self.threshold, criterion='distance')
-        counter=collections.Counter(Clusters)
-        Best = max(counter.items(), key=operator.itemgetter(1))[0]
-        #Chose if process all or just biggest cluster
-
-        if self.checkBox.isChecked():
-            ToProcess = [Best]    
-            self.statusbar.showMessage('Processing the best cluster. It contains %s datasets'%(counter[Best]))
-        else:
-            ToProcess = set(Clusters)
-            for key in ToProcess:
-                if counter[key]==1:
-                    ToProcess = [x for x in ToProcess if x != key]
-
-        #flag anomalus process or not
-        if self.anomBox.isChecked():
-            self.anomFlag= 'ano'
-        else:
-            self.anomFlag= 'no_ano'
-
-        # Delete previous processings and create working directories
-        for x in ToProcess:
-            if [self.threshold,x, self.anomFlag] not in  self.alreadyDone:
-                os.mkdir(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s'%(self.threshold,x, self.anomFlag))
-                Xscale=open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/XSCALE.INP'%(self.threshold,x, self.anomFlag), 'a')
-                Pointless=open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(self.threshold,x,self.anomFlag ), 'a')
-                print('OUTPUT_FILE=scaled.hkl',file=Xscale)
-                print('MERGE= TRUE', file=Xscale)
-                print('pointless hklout clustered.mtz << eof', file=Pointless)
-                if self.anomBox.isChecked():
-                    print('FRIEDEL\'S_LAW= FALSE', file=Xscale)
-                Xscale.close()
-                Pointless.close()
-
-        for cluster, filename in zip(Clusters,self.etiquets):
-            if cluster in ToProcess:
-                OUT = open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/XSCALE.INP'%(self.threshold,cluster,self.anomFlag), 'a')
-                Pointless=open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(self.threshold,cluster,self.anomFlag), 'a')
-                print ('INPUT_FILE= ../%s'%(filename), file=OUT)
-                #print ('INCLUDE_RESOLUTION_RANGE=20, 2', file=OUT)
-                print ('MINIMUM_I/SIGMA= 0', file=OUT)
-                print ('XDSIN ../%s'%(filename), file= Pointless)
-                OUT.close()
-                Pointless.close()
-        #optional run of XSCALE
-        
-        for x in ToProcess:
-            #newProcesses=[]
-            if [self.threshold,x, self.anomFlag] not in  self.alreadyDone:
-                self.statusbar.showMessage('XSCALE is processing cluster %.2f %s %s/'%(self.threshold, x,self.anomFlag))
-                plt.savefig(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/Dendrogram.png'%(self.threshold,x,self.anomFlag))
-                process = QtCore.QProcess(self)
-                process.setWorkingDirectory(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/'%(self.threshold, x,self.anomFlag))
-                process.start('xscale_par')
-                print('Cluster, %s , %s , %s, %s'%(self.threshold,x, self.anomFlag, counter[x]), file=Log)             
-                Pointless=open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(self.threshold,x,self.anomFlag), 'a')
-                print('COPY \n  TOLERANCE 4 \n eof', file= Pointless)
-                Pointless.close()
-                #newProcesses.append([self.threshold,x, self.anomFlag])
-                L=[self.threshold,x, self.anomFlag, counter[x]]
-            process.waitForFinished()
-            process.exitStatus()
-            sleep(0.5)
-            st = os.stat(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(self.threshold,x,self.anomFlag ))
-            os.chmod(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/launch_pointless.sh'%(self.threshold,x,self.anomFlag ), st.st_mode | 0o111)
-            self.tabWidget.addTab(resultsTab(float(L[0]), L[1], L[2], L[3]), ('%.2f %s %s')%(float(L[0]), L[1], L[2]))
-            self.alreadyDone.append([L[0], L[1], L[2]])
-        self.statusbar.showMessage('Ready!')
-        
-        # for L in newProcesses:
-        #     self.tabWidget.addTab(resultsTab(float(L[0]), L[1], L[2]), ('%.2f %s %s')%(float(L[0]), L[1], L[2]))
-        #     self.alreadyDone.append([L[0], L[1], L[2]])
 
 
 
@@ -687,19 +675,35 @@ class MainWindow(QtWidgets.QMainWindow):
     #update workDir, put it here to avoid duplication of same function
     #use it in other class: self.realTimeUpdate.updateWorkDit(WorkDir)
     def updateWorkDir(self, text):
+        if not text.strip():
+            print(f"{colors.RED}Work dir path is empty.{colors.ENDC}")
+            return #End function here (earlier)
+
         abs_dir = os.path.abspath(text)
         if os.path.isdir(abs_dir):
             self.shareWorkDir = abs_dir
         else:
-            print(f"{colors.RED}Update work dir failed, input dir does not exist: {abs_dir}{clolors.ENDC}")
+            print(f"{colors.RED}Update work dir failed, input dir does not exist: {abs_dir}{colors.ENDC}")
     
 
     #set up clustering scripts:
     def setupCC(self, correlationFile:str):
+        if not correlationFile:
+            text = f"No ccClusterlog file provided"
+            return None, None, None, text
+
+        if not os.path.isfile(correlationFile):
+            text = f"ccClusterlog file does not exist: {correlationFile}"
+            return None, None, None, text
+
+        if not self.shareWorkDir or not os.path.isdir(self.shareWorkDir):
+            text = f"Work directory not set or invalid: {self.shareWorkDir}"
+            return None, None, None, text
+
         CC = Clustering(correlationFile, self.shareWorkDir)
-        Tree = CC.avgTree()
-        etiquets=CC.createLabels()
-        return CC, Tree, etiquets
+        Tree = CC.avgTree() #needed, for set up self.Tree in clustering.py
+        etiquets = CC.createLabels()
+        return CC, Tree, etiquets, text
 
 
 
