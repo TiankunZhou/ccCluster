@@ -26,6 +26,7 @@ import json
 import random
 import textwrap
 import re
+import matplotlib.patches as mpatches
 
 # from .report  import WorkflowStepReport
 
@@ -360,7 +361,15 @@ class Clustering():
                 if [thr, self.Best, anomFlag] not in self.alreadyDone:
                     #self.createDendrogram(thr)
                     X = hierarchy.dendrogram(self.Tree, color_threshold=float(thr))
-                    plt.savefig(abs_run_dir+'/Dendrogram.png')
+
+                    #Show figure legend about what color is what cluster
+                    legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
+                                      for i, c in enumerate(dict.fromkeys(X['color_list'])) \
+                                      if c not in ['C0', 'k', 'grey']]
+                    plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
+                               borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
+
+                    plt.savefig(abs_run_dir+'/Dendrogram.png', bbox_inches="tight")
                     subprocess.run('xscale_par',cwd=abs_run_dir)
                     newProcesses.append([thr, self.Best, anomFlag])
             else:

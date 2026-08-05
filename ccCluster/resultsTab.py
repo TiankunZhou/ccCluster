@@ -27,29 +27,15 @@ import sys
 import os
 import subprocess
 
-
-try:
-    _fromUtf8 = QtCore.QString.fromUtf8
-except AttributeError:
-    def _fromUtf8(s):
-        return s
-
-try:
-    _encoding = QtGui.QApplication.UnicodeUTF8
-    def _translate(context, text, disambig):
-        return QtWidgets.QApplication.translate(context, text, disambig, _encoding)
-except AttributeError:
-    def _translate(context, text, disambig):
-        return QtWidgets.QApplication.translate(context, text, disambig)
-
+#create results tab to plot the SCALE.LP statistics
 class resultsTab(QtWidgets.QWidget):
 
-    def __init__(self, thr,cls, anom, num):
+    def __init__(self, thr, cls, anom, num, ProcessedDir):
         QtWidgets.QWidget.__init__(self)
-        self.CurrentDir= os.getcwd()
+        self.ProcessedDir= ProcessedDir
         self.plotList= []
         self.tabLayout= QtWidgets.QVBoxLayout(self)
-        self.Picture= QtGui.QPixmap(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/Dendrogram.png'%(float(thr), cls, anom))
+        self.Picture= QtGui.QPixmap(f"{self.ProcessedDir}/Dendrogram.png")
         self.ImageBox = QtWidgets.QLabel(self)
         self.ImageBox.setPixmap(self.Picture)
         self.ImageBox.setMaximumSize(400,150)
@@ -58,14 +44,14 @@ class resultsTab(QtWidgets.QWidget):
         self.Title.setText('Threshold %.2f, Cluster %s, %s, %s datasets'%(float(thr), cls, anom, num))
         self.Text= QtWidgets.QTextEdit()
 
-    #self.LogFile=open(self.CurrentDir+'/cc_Cluster_%.2f_%s/XSCALE.LP'%(float(thr), cls)).read()
+    #self.LogFile=open(self.ProcessedDir+'/cc_Cluster_%.2f_%s/XSCALE.LP'%(float(thr), cls)).read()
         self.statsPlot = Figure()
         self.Ax= self.statsPlot.add_subplot(111)
         self.statsCanvas = FigureCanvas(self.statsPlot)
         self.statsBar= NavigationToolbar(self.statsCanvas, self)
         self.statsCanvas.setMinimumSize(700, 500)
 
-        with open(self.CurrentDir+'/cc_Cluster_%.2f_%s_%s/XSCALE.LP'%(float(thr), cls, anom), 'r') as LogFile:
+        with open(self.ProcessedDir+'/cc_Cluster_%.2f_%s_%s/XSCALE.LP'%(float(thr), cls, anom), 'r') as LogFile:
             for line in LogFile:
                 if line.strip().startswith('LIMIT'):
                     break

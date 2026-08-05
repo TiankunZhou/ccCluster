@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import sys
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+import matplotlib.patches as mpatches
 
 #import CalcClass
 from scipy.cluster import hierarchy
@@ -35,7 +36,7 @@ import argparse
 
 #Deal with wild card
 import glob
-from pathlib import Path'
+from pathlib import Path
 import textwrap
 
 
@@ -64,62 +65,6 @@ class colors:
     BLUE = '\033[34m'
     RED = '\033[31m'
     ENDC = '\033[m'
-
-
-
-#set up the parameters, maybe not necessary as you should be able to add them via the GUI
-def process_args():
-    input_args = argparse.ArgumentParser()
-    input_args.add_argument("-i","--DISTfile", 
-    default=None, 
-    help="Distance file from ccCalc module"
-    )
-    
-    #input_args.add_argument("-f", dest="structures", default= None ,  type=str, nargs='+', help='The list of refined structures to merge')
-    #input_args.add_argument("-o","--outname", dest="outname", default='Dendrogram', help="output dendogram file name")
-    """
-    input_args.add_argument("-t", "--threshold", 
-    dest="threshold", 
-    help="Distance threshold for clustering"
-    )
-
-    input_args.add_argument("-c", "--count",
-    action="store_true", 
-    dest="count", 
-    default=False, 
-    help="Counts datasets in the biggest cluster and exit"
-    )
-
-    input_args.add_argument("-e", "--estimation",
-    action="store_true", 
-    dest="est", 
-    default=False, 
-    help="Tries to guess an optimal threshold value"
-    )
-    """
-    input_args.add_argument("-wd", "--work_dir",
-    type = str,
-    help = "output directory, default is pwd",
-    )
-    
-    #input_args.add_argument("-u", dest="cell", default= False , action="store_true" , help='Unit cell based clustering. requires list of input files')
-
-    #input_args.print_help()
-    args= input_args.parse_args()
-
-    #set work dir to pwd if none
-    if args.output_dir == None:
-        args.output_dir = os.getcwd()
-
-
-    #Suggest to run ccCalc if no correlation file is provided
-    #Call to ccCalc if no distances found but files listed
-    if args.DISTfile is None: 
-        print('no inputs specified, please run ccCalc before')
-    else:
-        correlationFile=args.DISTfile
-    
-    return args
 
 
 
@@ -160,11 +105,15 @@ class tab_ccCal(QWidget):
         self.WorkDir_entry = QtWidgets.QLineEdit()
         self.WorkDir_entry.setText(self.WorkDir)  
         #self.WorkDir_entry.setPlaceholderText("Please select a work dir")
-        #update changes in the WorkDir entry in real time
 
-        self.WorkDir_entry.textChanged.connect(lambda: self.realTimeUpdat.updateWorkDir(self.WorkDir_entry.text()))
+        #update the work dir in real time when the text is changed
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdat.updateWorkDir)
+        #do not need label for work dir, as it is self-explanatory
+        #self.WorkDir_entry.textChanged.connect(lambda: self.realTimeUpdat.updateWorkDir(self.WorkDir_entry.text()))
         #check ccClusterlog.txt when change the work dir:
         self.WorkDir_entry.textChanged.connect(self.check_ccCalLogStatus)
+        #update the result list in ccCluster tab when work dir changed
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.tab_ccCluster.CheckAndShowResult)
 
         #select workdir button
         self.ChooseWorkDir = QtWidgets.QPushButton("Select work dir")
@@ -299,6 +248,10 @@ class tab_ccCluster(QWidget):
         #get real time update
         self.realTimeUpdate = realTimeUpdates
 
+        #read processed result in WorkDir:
+        self.MergeResult = []
+        self.CheckAndShowResult()
+
         #vertical layout
         self.ccCal_layout = QtWidgets.QVBoxLayout(self)
 
@@ -383,8 +336,11 @@ class tab_ccCluster(QWidget):
         #define widget
         self.plotDendroAndStatistic_widget = QtWidgets.QWidget()
 
-        #Create tabs for each merged results
-        #Creast tabs for Dendrogram and statistics
+        #Create layout
+        layout = QtWidgets.QVBoxLayout(self.plotDendroAndStatistic_widget)
+
+        #Create tabs for Dendrogram and statistics
+        self.DendroAndStatsPlot()
 
 
     #Add ccCluster log path is needed
@@ -393,6 +349,7 @@ class tab_ccCluster(QWidget):
 
         if file_path:
             self.WorkDir_entry.setText(os.path.abspath(file_path))
+
 
     #Auto elect ccCluster log file if exists in work Dir
     def auto_select_ccClusterLogPath(self):
@@ -437,6 +394,7 @@ class tab_ccCluster(QWidget):
             else:
                 self.update_ccClusterStatusBar(f"Please input a threshold value")
 
+
     #submit ccCluster job
     def submit_ccCluster(self):
         CC, Tree, etiquets, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
@@ -454,10 +412,10 @@ class tab_ccCluster(QWidget):
 
             if fileType=="HKL":
                 #prepare and run XSCALE job
-                if args.reference_HKL == None:
+                if not self.reference_HKL:
                     xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold)
-                elif os.path.isfile(args.reference_HKL):
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, refHKL=args.reference_HKL)
+                elif os.path.isfile(self.reference_HKL):
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, refHKL=self.reference_HKL)
                 else:
                     xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold)
                 if xscale_checker == True:
@@ -490,6 +448,104 @@ class tab_ccCluster(QWidget):
                 self.update_ccClusterStatusBar(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
                 print(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
 
+
+    #check and show results will also be used by other tabs
+    def CheckAndShowResult(self):
+        abs_FolderPaths = Path(self.realTimeUpdate.shareWorkDir)
+        for folder_path in abs_FolderPaths.glob("cc_Cluster_*"):
+            if folder_path.is_dir():
+                if (folder_path/"XSCALE.LP").is_file():
+                    folder_name = folder_path.name
+                    if folder_name not in self.MergeResult:
+                        self.MergeResult.append(folder_name)
+                else:
+                    print(f"{colors.RED}No XSCALE.LP in folder: {folder_path}{colors.ENDC}")
+            else:
+                print(f"{colors.RED}Folder path does not exist: {folder_path}{colors.ENDC}")
+
+        self.MergeResult.sort()
+
+
+    #create tabs in the Result tab to show dendrogram and statistics for each merged result
+    def DendroAndStatsPlot(self):
+        #Show Dendrogram with current threshold with a button
+        def ShowDendrogramThreshold(threshold):
+            CC, Tree, _, _ = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+            X = hierarchy.dendrogram(Tree, color_threshold=threshold)
+
+            #Show figure legend about what color is what cluster
+            legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
+                                for i, c in enumerate(dict.fromkeys(X['color_list'])) \
+                                if c not in ['C0', 'k', 'grey']]
+            plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
+                        borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
+
+            Dendrogram_plot = FigureCanvas(plt.figure())
+            Dendrogram_plot.draw()
+
+
+        #set up the Dendrogram plot tab
+        def DendrogramPlotProcessed(DendragramPath):
+            DendroproicessedWedget = QtWidgets.QWidget()
+            Dendrolayout = QtWidgets.QVBoxLayout(DendroproicessedWedget)
+
+            #plot the Dendrogram from the pong file
+            self.ImageBox = QtWidgets.QLabel(self)
+            self.ImageBox.setPixmap(f"{DendragramPath}")
+            self.ImageBox.setScaledContents(True)
+
+            Dendrolayout.addWidget(self.ImageBox)
+
+            return DendroproicessedWedget
+        
+        #grab the mergnig statistcs form XSCALE.LP
+        def XSCALEStat(XSCALEFile):
+            XSCALEstat = QtWidgets.QWidget()
+            XSCALEstatlayout = QtWidgets.QVBoxLayout(XSCALEstat)
+
+            #create a read-only text edit to show the XSCALE.LP statistics
+            XSCALEText = QtWidgets.QTextEdit()
+            XSCALEText.setReadOnly(True)
+
+            #Get the content
+            _, plotText = self.extractXSCALEStat(XSCALEFile)
+            XSCALEText.setText(plotText)
+
+            #put in to layout
+            XSCALEstatlayout.addWidget(XSCALEText)
+
+            #return the widget
+            return XSCALEstat
+            
+            
+        #set up the tab for Dendrogram and statistics
+        if not self.MergeResult:
+            print(f"{colors.RED}No merged result found in {self.realTimeUpdate.shareWorkDir}, please check{colors.ENDC}")
+            return
+        
+        #set up the tab for Dendrogram and statistics
+        for result_folder in self.MergeResult:
+            resultTab = QtWidgets.QWidget()
+            resultTabLayout = QtWidgets.QVBoxLayout(resultTab)
+
+
+    #Extrace statistics from XSCALE.LP
+    def extractXSCALEStat(self, XSCALEFile):
+        plotList = []
+        plotText = ""
+        with open(XSCALEFile, 'r') as LogFile:
+            for line in LogFile:
+                if line.strip().startswith('LIMIT'):
+                    break
+            for line in LogFile:
+                break
+            for line in LogFile:
+                if line.strip().startswith('total'):
+                    break
+                plotList.append(line.split())
+                plotText += f"{line.strip()}\n"
+        return plotList, plotText
+                
 
 """
     #old not use
@@ -615,27 +671,10 @@ class tab_ccCluster(QWidget):
 
     """
 
-    #check and show result
-    def CheckAndShowResult (self):
-        self.MergeResult = []
-        abs_FolderPaths = Path(self.realTimeUpdate.shareWorkDir)
-        for folder_path in abs_FolderPaths.glob(f"cc_Cluster_*"):
-            if folder_path.is_dir():
-                if (folder_path/"XSCALE.LP").is_file():
-                    self.MergeResult.append(folder_name)
-                else:
-                    print(f"{colors.RED}No XSCALE.LP in folder: {folder_path}{colors.ENDC}")
-
 
     def showSummary(self):
         self.sum = resultsSummary()
         self.sum.show()
-
-
-    def createDendrogram(self):
-        X = hierarchy.dendrogram(Tree, color_threshold=self.threshold)
-        #self.textOutput.append('Plotted Dendrogram. Colored at a %s threshold for distance'%(threshold))
-        self.TreeCanvas.draw()
 
 
     def onChanged(self, text):
@@ -646,7 +685,12 @@ class tab_ccCluster(QWidget):
 class tab_plotStats():
     def __init__(self, realTimeUpdates:MainWindow, **kwargs):
         super().__init__()
-        
+
+        #get real time update from self of MainWindow
+        self.realTimeUpdate = realTimeUpdates
+
+        #get self from ccCluster tab to get the result list
+        self.ccClusterTab = self.realTimeUpdate.Tab_ccCluster
         #setup buttons
 
 
