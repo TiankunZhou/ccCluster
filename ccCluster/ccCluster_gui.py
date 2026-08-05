@@ -470,8 +470,10 @@ class tab_ccCluster(QWidget):
     def DendroAndStatsPlot(self):
         #Show Dendrogram with current threshold with a button
         def ShowDendrogramThreshold(threshold):
+            fig, ax = plt.subplots()
+
             CC, Tree, _, _ = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
-            X = hierarchy.dendrogram(Tree, color_threshold=threshold)
+            X = hierarchy.dendrogram(Tree, color_threshold=threshold, ax=ax)
 
             #Show figure legend about what color is what cluster
             legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
@@ -480,8 +482,9 @@ class tab_ccCluster(QWidget):
             plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
                         borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
 
-            Dendrogram_plot = FigureCanvas(plt.figure())
-            Dendrogram_plot.draw()
+            fig.tight_layout()
+
+            return FigureCanvas(fig)
 
 
         #set up the Dendrogram plot tab
@@ -517,12 +520,19 @@ class tab_ccCluster(QWidget):
             #return the widget
             return XSCALEstat
             
-            
+        #set up the widget and the tabs
+        self.plotDendroAndStatistic_widget = QtWidgets.QWidget()
+
+        #setup the tab for plotting Dendrogram with given threshold
+        DendroGramTreshTab = QtWidgets.QWidget()
+        DendroGramTreshLayout = QtWidgets.QVBoxLayout(DendroGramTreshTab)
+        DendroGramTreshPlot = ShowDendrogramThreshold(float(self.ShowThreshold.text())) if self.ShowThreshold.text() else None
+
         #set up the tab for Dendrogram and statistics
         if not self.MergeResult:
             print(f"{colors.RED}No merged result found in {self.realTimeUpdate.shareWorkDir}, please check{colors.ENDC}")
             return
-        
+
         #set up the tab for Dendrogram and statistics
         for result_folder in self.MergeResult:
             resultTab = QtWidgets.QWidget()
@@ -543,7 +553,14 @@ class tab_ccCluster(QWidget):
                 if line.strip().startswith('total'):
                     break
                 plotList.append(line.split())
-                plotText += f"{line.strip()}\n"
+
+            #align the columns
+            if plotList:
+                col_widths = [max(len(row[col_idx]) for row in plotList) + 3 for col_idx in range(len(plotList[0]))]
+                for line in plotList:
+                    aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(line))
+                    plotText += f"{aligned_line}\n"
+
         return plotList, plotText
                 
 
