@@ -2,14 +2,13 @@
 from __future__ import print_function, absolute_import
 
 __author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 20150-2019"
+__copyright__ = "Copyright 2015-2019"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
-__maintainer__ = "Gianluca Santoni"
-__email__ = "gianluca.santoni@esrf.fr"
+__maintainer__ = "Tiankun Zhou"
+__email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
-
 
 
 

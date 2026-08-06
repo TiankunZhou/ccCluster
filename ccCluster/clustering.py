@@ -1,13 +1,12 @@
 from __future__ import print_function
 __author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 20150-2019"
+__copyright__ = "Copyright 2015-2019"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
-__maintainer__ = "Gianluca Santoni"
-__email__ = "gianluca.santoni@esrf.fr"
+__maintainer__ = "Tiankun Zhou"
+__email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
-
 
 
 
@@ -275,7 +274,7 @@ class Clustering():
         """
 
         #Setup running directory
-        processing_dir_XSCALE = self.RunDir+'/cc_Cluster_%.2f_%s_%s'%(float(thr),self.Best, anomFlag)
+        processing_dir_XSCALE = self.RunDir+'/cc_Cluster_%.2f_%s_%s'%(float(thr), self.Best, anomFlag)
         XSCALE_file = f"{processing_dir_XSCALE}/XSCALE.INP"
         if [thr, self.Best, anomFlag] not in self.alreadyDone:
             #check working dir
