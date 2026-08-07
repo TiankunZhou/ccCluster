@@ -26,7 +26,7 @@ import collections
 import operator
 from time import sleep
 import os
-from .resultsTab import SinglePlotTab, MultiPlotTab, extractXSCALEStat
+from .resultsTab import SinglePlotTab, MultiPlotTab, PrePlotDendrogram, extractXSCALEStat
 from .summary import resultsSummary
 from .clustering import Clustering
 from .ccCalc import ccList
@@ -107,9 +107,9 @@ class tab_ccCal(QWidget):
         #self.WorkDir_entry.setPlaceholderText("Please select a work dir")
 
         #update the work dir in real time when the text is changed
-        self.WorkDir_entry.textChanged.connect(self.realTimeUpdat.updateWorkDir)
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.updateWorkDir)
         #do not need label for work dir, as it is self-explanatory
-        #self.WorkDir_entry.textChanged.connect(lambda: self.realTimeUpdat.updateWorkDir(self.WorkDir_entry.text()))
+        #self.WorkDir_entry.textChanged.connect(lambda: self.realTimeUpdate.updateWorkDir(self.WorkDir_entry.text()))
         #check ccClusterlog.txt when change the work dir:
         self.WorkDir_entry.textChanged.connect(self.check_ccCalLogStatus)
         #update the result list in ccCluster tab when work dir changed
@@ -154,6 +154,14 @@ class tab_ccCal(QWidget):
         self.insert_HKLPaths = QtWidgets.QPushButton("Add a HKL file")
         self.insert_HKLPaths.clicked.connect(self.add_HKLPath)
 
+        #target folder for searching HKL files, default is pwd
+        self.SearchDir = QtWidgets.QLineEdit()
+        self.SearchDir.setPlaceholderText("Please select a HKL dir")
+        self.FileName = QtWidgets.QLineEdit()
+        self.FileName.setText("XSCALE.HKL")
+        self.search_HKL_button = QtWidgets.QPushButton("Search HKL files")
+        self.search_HKL_button.clicked.connect(self.search_HKL_files)
+
         #button to run ccCla
         self.run_ccCal = QtWidgets.QPushButton("Run ccCal")
         self.run_ccCal.clicked.connect(self.submit_ccCal)
@@ -162,14 +170,18 @@ class tab_ccCal(QWidget):
         layout = QtWidgets.QVBoxLayout(self.ccCal_widget)
 
         #put hkltext and button together
-        hklLayout = QtWidgets.QHBoxLayout()
-        hklLayout.addWidget(self.HKLPaths_text, 4)     
-        hklLayout.addWidget(self.insert_HKLPaths, 1)
+        self.hkladdfileswidget = QtWidgets.QWidget()
+        self.hkladdfileslayout = QtWidgets.QVBoxLayout(self.hkladdfileswidget)   
+        self.hkladdfileslayout.addWidget(self.insert_HKLPaths, 1)
+        self.hkladdfileslayout.addWidget(self.SearchDir, 4)
+        self.hkladdfileslayout.addWidget(self.FileName, 2)
+        self.hkladdfileslayout.addWidget(self.search_HKL_button, 1)
 
         #other things layout
         layout.addWidget(self.ccCallog_status)
         #have hkllayout inside main layout
-        layout.addLayout(hklLayout)
+        layout.addWidget(self.HKLPaths_text)
+        layout.addWidget(self.hkladdfileswidget)
         layout.addWidget(self.run_ccCal)
 
 
@@ -179,11 +191,11 @@ class tab_ccCal(QWidget):
         input_path = [line.strip() for line in self.HKLPaths_text.toPlainText().splitlines() if line.strip()]
         for path in input_path:
             hkl_files = glob.glob(path)
-            if HKL_files:
+            if hkl_files:
                 for hkl_file in hkl_files:
                     if os.path.isfile(hkl_file) and Path(hkl_file).suffix.lower() == ".hkl":
                         print(f"{colors.BLUE}Adding {hkl_file} to the HKL merge list")
-                        abs_path_list.append(os.path.abspath(hkl_file))
+                        abs_file_list.append(os.path.abspath(hkl_file))
                     else:
                         print(f"{colors.RED}No HKL file: {hkl_file}, please check{colors.ENDC}")
             else:
@@ -195,10 +207,10 @@ class tab_ccCal(QWidget):
     #submit ccCal jobs
     def submit_ccCal(self):
         HKL_list = self.getHKLList()
-        if os.path.isdir(self.realTimeUpdate.shareWorkDir) and if HKL_list:
+        if os.path.isdir(self.realTimeUpdate.shareWorkDir) and HKL_list:
             ccList(HKL_list, self.realTimeUpdate.shareWorkDir)
-        elif not of.path.isdir(self.realTimeUpdate.shareWorkDir):
-            print(f"{color.RED}Working dir does not exist, please check: {self.realTimeUpdate.shareWorkDir}{colors.ENDC}")
+        elif not os.path.isdir(self.realTimeUpdate.shareWorkDir):
+            print(f"{colors.RED}Working dir does not exist, please check: {self.realTimeUpdate.shareWorkDir}{colors.ENDC}")
         elif not HKL_list:
             print(f"{colors.RED}No HKL file list, please check HKL paths{colors.ENDC}")
         else:
@@ -209,7 +221,7 @@ class tab_ccCal(QWidget):
 
 
     #select output folder
-    def select_WorDir(self):
+    def select_WorkDir(self):
         WorkFolder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select work dir")
 
         if WorkFolder:
@@ -237,6 +249,39 @@ class tab_ccCal(QWidget):
             self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
 
 
+    #search HKL files in the selected folder with the given suffix
+    def search_HKL_files(self):
+        matching_files = []
+        FileName = self.FileName.text().strip()
+        target_folder_text = self.SearchDir.text().strip()
+        if not target_folder_text:
+            print(f"{colors.RED}Please put a target folder for searching HKL files{colors.ENDC}")
+            return
+        if glob.glob(target_folder_text) == []:
+            print(f"{colors.RED}No folder found: {target_folder_text}{colors.ENDC}")
+            return
+
+        for path in glob.glob(target_folder_text):
+            if os.path.isdir(path):
+                absolute_target_folder = os.path.abspath(path)
+                for root, dirs, files in os.walk(absolute_target_folder):
+                    if FileName in files:
+                        full_path = os.path.join(root, FileName)
+                        matching_files.append(full_path)
+                        print(f"{colors.BLUE}Found: {full_path}{colors.ENDC}")
+            else:
+                print(f"{colors.RED}Folder does not exist: {path}{colors.ENDC}")
+        
+        if matching_files:
+            matching_files.sort()
+            self.HKLPaths_text.clear()
+            self.HKLPaths_text.setPlainText("\n".join(matching_files))
+            print(f"{colors.GREEN}Added {len(matching_files)} file(s){colors.ENDC}")
+        else:
+            self.HKLPaths_text.clear()
+            print(f"{colors.RED}No files found: {FileName}{colors.ENDC}")
+
+
 
 #define Class for the tab for ccClustering
 #tabs for result and summary are generated 
@@ -253,7 +298,7 @@ class tab_ccCluster(QWidget):
         self.CheckAndShowResult()
 
         #vertical layout
-        self.ccCal_layout = QtWidgets.QVBoxLayout(self)
+        self.ccCluster_layout = QtWidgets.QVBoxLayout(self)
 
         #set up buttons
         self.ccClusterSetup_area()
@@ -263,11 +308,9 @@ class tab_ccCluster(QWidget):
         #other parameters
 
         #Add widget to the layout
-        self.ccCal_layout.addWidget(self.ccClusterSetup_widget, 1)
-        self.ccCal_layout.addWidget(self.plotDendroAndStatistic_widget, 4)
+        self.ccCluster_layout.addWidget(self.ccClusterSetup_widget, 1)
+        self.ccCluster_layout.addWidget(self.plotDendroAndStatisticWidget, 4)
 
-        #for auto tab adder
-        self.known_folders = set(self.MergeResult)
 
 
     #setups for ccCluster
@@ -362,13 +405,20 @@ class tab_ccCluster(QWidget):
     #plot the Dendrogram and SCALE.LP statistics in different sub-tabs
     def plotDendroAndStatistic_area(self):
         #define widget
-        self.plotDendroAndStatistic_widget = QtWidgets.QWidget()
+        self.plotDendroAndStatisticWidget = QtWidgets.QWidget()
 
         #Create layout
-        layout = QtWidgets.QVBoxLayout(self.plotDendroAndStatistic_widget)
+        self.plotDendroAndStatisticLayout = QtWidgets.QVBoxLayout(self.plotDendroAndStatisticWidget)
+
+        #add title to the top of widget
+        self.titleWidget = QtWidgets.QLabel("Show result Dendrogram and statistics for each merged result")
 
         #Create tabs for Dendrogram and statistics
         self.DendroAndStatsPlot()
+
+        #pack widgets into the layout
+        self.plotDendroAndStatisticLayout.addWidget(self.titleWidget, 1)
+        self.plotDendroAndStatisticLayout.addWidget(self.ResultDendroAndStatsTab, 9)
 
 
     #Add ccCluster log path is needed
@@ -491,9 +541,9 @@ class tab_ccCluster(QWidget):
                 print(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
 
 
-    #check and show results will also be used by other tabs
+    #Update results folder list, will be used by the result compare tab
     def CheckAndShowResult(self):
-        abs_FolderPaths = Path(self.realTimeUpdate.shareWorkDir)
+        abs_FolderPaths = Path(os.path.abspath(self.realTimeUpdate.shareWorkDir))
         for folder_path in abs_FolderPaths.glob("cc_Cluster_*"):
             if folder_path.is_dir():
                 if not (folder_path/"XSCALE.LP").is_file():
@@ -510,151 +560,169 @@ class tab_ccCluster(QWidget):
                 print(f"{colors.RED}Folder path does not exist: {folder_path}{colors.ENDC}")
 
         #remove the not existing result folder from the list
+        Exist_results = []
         for result_folder in self.MergeResult:
-            if not os.path.isdir(result_folder):
-                self.update_ccClusterStatusBar(f"Result folder {result_folder} does not exist, remove it from the list")
-                self.MergeResult.remove(result_folder)
-            elif not os.path.isfile(os.path.join(result_folder, "XSCALE.LP")):
-                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {result_folder}, remove it from the list")
-                self.MergeResult.remove(result_folder)
-            elif not os.path.isfile(os.path.join(result_folder, "dendrogram.png")):
-                self.update_ccClusterStatusBar(f"No dendrogram.png found in {result_folder}, remove it from the list")
-                self.MergeResult.remove(result_folder)
+            abs_result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_folder)
+            if not os.path.isdir(abs_result_folder):
+                self.update_ccClusterStatusBar(f"Result folder {abs_result_folder} does not exist, remove it from the list")
+            elif not os.path.isfile(os.path.join(abs_result_folder, "XSCALE.LP")):
+                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {abs_result_folder}, remove it from the list")
+            elif not os.path.isfile(os.path.join(abs_result_folder, "dendrogram.png")):
+                self.update_ccClusterStatusBar(f"No dendrogram.png found in {abs_result_folder}, remove it from the list")
+            else:
+                Exist_results.append(result_folder)
+
+        self.MergeResult = Exist_results
 
         self.MergeResult.sort()
+        self.SyncResultTabs()
+
+    #prepare DendroGram tab from png for the result folder
+    def DendrogramFromPNG(self, dendrogram_path:str):
+        #set up the Dendrogram plot tab
+        DendroprocessedWidget = QtWidgets.QWidget()
+        Dendrolayout = QtWidgets.QVBoxLayout(DendroprocessedWidget)
+
+        #plot the Dendrogram from the png file
+        ImageBox = QtWidgets.QLabel(self)
+        ImageBox.setPixmap(QtGui.QPixmap(dendrogram_path))
+        ImageBox.setScaledContents(True)
+
+        Dendrolayout.addWidget(ImageBox)
+
+        return DendroprocessedWidget
+
+
+    #prepare tabs for XSCALE statistics
+    def CreateXSCALEStatTab(self, XSCALEFile:str):
+        XSCALEstat = QtWidgets.QWidget()
+        XSCALEstatlayout = QtWidgets.QVBoxLayout(XSCALEstat)
+
+        #create a read-only text edit to show the XSCALE.LP statistics
+        XSCALEText = QtWidgets.QTextEdit()
+        XSCALEText.setReadOnly(True)
+
+        #Get the content
+        _, plotText = extractXSCALEStat(XSCALEFile)
+        XSCALEText.setText(plotText)
+
+        #put in to layout
+        XSCALEstatlayout.addWidget(XSCALEText)
+
+        #return the widget
+        return XSCALEstat
+
+
+    #function to add result tab in the self.PlottingTabWidget for realtime update when new result is generated or deleted
+    def CreateResultTabs(self, result_name:str):
+        result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_name)
+        dendrogram_path = os.path.join(result_folder, "dendrogram.png")
+        xscale_path = os.path.join(result_folder, "XSCALE.LP")
+
+        #check if the dendrogram.png and XSCALE.LP exist in the result folder
+        if not os.path.isfile(dendrogram_path):
+            self.update_ccClusterStatusBar(f"No dendrogram.png found in {result_folder}, please check")
+            return
+        if not os.path.isfile(xscale_path):
+            self.update_ccClusterStatusBar(f"No XSCALE.LP found in {result_folder}, please check")
+            return
+
+        #set up the tab for Dendrogram and statistics
+        resultTab = QtWidgets.QTabWidget()
+
+        #set up the Dendrogram plot tab
+        DendroprocessedWidget = self.DendrogramFromPNG(dendrogram_path)
+
+        #add dendrogram plot for the result as a tab
+        resultTab.addTab(DendroprocessedWidget, "Dendrogram")
+
+        #set up the tab for statistics from XSCALE.LP
+        resultTab.addTab(self.CreateXSCALEStatTab(xscale_path), "XSCALE Statistics")
+
+        #plot The statistics from XSCALE.LP
+        resultTab.addTab(SinglePlotTab(xscale_path), "XSCALE Statistics Plot")
+
+        #Return tabs for the result, will be added to the self.PlottingTabWidget
+        return resultTab
+
+
+    #remove non-existing result tabs from the self.PlottingTabWidget for realtime update when new result is generated or deleted
+    def RemoveResultTabs(self, result_name:str):
+        #check if self.PlottingTabWidget exists
+        if not hasattr(self, 'PlottingTabWidget') or self.PlottingTabWidget is None:
+            return
+        #Find the tabs and remove it saftely
+        for i in range(self.PlottingTabWidget.count()):
+            if self.PlottingTabWidget.tabText(i) == result_name:
+                widget = self.PlottingTabWidget.widget(i)
+                #remove the tab from the PlottingTabWidget
+                self.PlottingTabWidget.removeTab(i)
+                if widget:
+                    #delete the widget to free memory
+                    widget.deleteLater()
+                print(f"Removed tab: {result_name}")
+                return
+
+
+    #sync the result tabs with the self.MergeResult list, remove non-existing result tabs from the self.PlottingTabWidget
+    def SyncResultTabs(self):
+        #check if self.PlottingTabWidget exists
+        if not hasattr(self, 'PlottingTabWidget') or self.PlottingTabWidget is None:
+            return
+
+        #update the Tab list
+        tablist = []
+        for i in range(self.PlottingTabWidget.count()):
+            tab_text = self.PlottingTabWidget.tabText(i)
+            # Skip the pre-plot tab
+            if tab_text != "Pre-plot Dendrogram with threshold":
+                tablist.append(tab_text)
+
+        #get list of tabs to add and remove
+        tabs_to_add = [f for f in self.MergeResult if f not in tablist]
+        tabs_to_remove = [f for f in tablist if f not in self.MergeResult]
+
+        #add ResultTabs
+        for folder_name in tabs_to_add:
+            resultPlotTab  = self.CreateResultTabs(folder_name)
+            if resultPlotTab is not None:
+                self.PlottingTabWidget.addTab(resultPlotTab , folder_name)
+                self.update_ccClusterStatusBar(f"Added result tab for {folder_name}")
+
+        #remove ResultTabs
+        for folder_name in tabs_to_remove:
+            self.RemoveResultTabs(folder_name)
+
+        #update log
+        status_msg = f"Synced tabs: +{len(tabs_to_add)} added, -{len(tabs_to_remove)} removed"
+        self.update_ccClusterStatusBar(status_msg)
+        print(status_msg)
 
 
     #create tabs in the Result tab to show dendrogram and statistics for each merged result
-    def DendroAndStatsPlot(self):
-        #add title to the top of widget
-        self.titleWidget = QtWidgets.QLabel("Show result Dendrogram and statistics for each merged result")
-
-        #Show Dendrogram with current threshold with a button
-        def ShowDendrogramThreshold(threshold:float):
-            CC, Tree, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
-            if CC is None:
-                self.update_ccClusterStatusBar(status_text)
-                return None
-
-            if threshold is None:
-                self.update_ccClusterStatusBar("Please input a threshold value")
-                return None
-
-            fig, ax = plt.subplots()
-            X = hierarchy.dendrogram(Tree, color_threshold=threshold, ax=ax)
-
-            #Show figure legend about what color is what cluster
-            legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
-                                for i, c in enumerate(dict.fromkeys(X['color_list'])) \
-                                if c not in ['C0', 'k', 'grey']]
-            plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
-                        borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
-
-            fig.tight_layout()
-
-            return FigureCanvas(fig)
-
-
-        #set up the Dendrogram plot tab
-        def DendrogramPlotProcessed(DendrogramPath):
-            DendroprocessedWidget = QtWidgets.QWidget()
-            Dendrolayout = QtWidgets.QVBoxLayout(DendroprocessedWidget)
-
-            #plot the Dendrogram from the pong file
-            ImageBox = QtWidgets.QLabel(self)
-            ImageBox.setPixmap(QtGui.QPixmap(f"{DendrogramPath}"))
-            ImageBox.setScaledContents(True)
-
-            Dendrolayout.addWidget(ImageBox)
-
-            return DendroprocessedWidget
-        
-        #grab the merging statistics from XSCALE.LP
-        def XSCALEStat(XSCALEFile):
-            XSCALEstat = QtWidgets.QWidget()
-            XSCALEstatlayout = QtWidgets.QVBoxLayout(XSCALEstat)
-
-            #create a read-only text edit to show the XSCALE.LP statistics
-            XSCALEText = QtWidgets.QTextEdit()
-            XSCALEText.setReadOnly(True)
-
-            #Get the content
-            _, plotText = extractXSCALEStat(XSCALEFile)
-            XSCALEText.setText(plotText)
-
-            #put in to layout
-            XSCALEstatlayout.addWidget(XSCALEText)
-
-            #return the widget
-            return XSCALEstat
-            
+    def DendroAndStatsPlot(self):            
         #set up the widget and layout
-        self.plotDendroAndStatistic_widget = QtWidgets.QWidget()
-        plotDendroAndStatisticLayout = QtWidgets.QVBoxLayout(self.plotDendroAndStatistic_widget)
-
-        #plotting widget
-        PlottingTabWidget = QtWidgets.QTabWidget()
-
-        #prepare dendrogram plot with threshold from the lineEdit, if the lineEdit is empty, do not plot
-        DendroGramTreshPlot = ShowDendrogramThreshold(float(self.ShowThreshold.text())) if self.ShowThreshold.text() else None
-
-        #button to plot the default dendrogram with the threshold from the lineEdit
-        DendroGramTreshPlotButton = QtWidgets.QPushButton("Plot Dendrogram with current threshold")
-        DendroGramTreshPlotButton.clicked.connect(lambda: ShowDendrogramThreshold(float(self.ShowThreshold.text())) \
-                                                  if self.ShowThreshold.text() else None)
-        #set up the tab for Dendrogram pre-plot with threshold
-        DendroGramTresh = QtWidgets.QWidget()
-        DendroGramTreshLayout = QtWidgets.QVBoxLayout(DendroGramTresh)
-        DendroGramTreshLayout.addWidget(DendroGramTreshPlotButton)
-        if DendroGramTreshPlot is not None:
-            DendroGramstatsBar = NavigationToolbar(DendroGramTreshPlot, self)
-            DendroGramTreshLayout.addWidget(DendroGramstatsBar)
-            DendroGramTreshLayout.addWidget(DendroGramTreshPlot)
-        else:
-            placeholder_label = QtWidgets.QLabel("Enter a threshold and click 'Plot Dendrogram'")
-            placeholder_label.setAlignment(QtCore.Qt.AlignCenter)
-            DendroGramTreshLayout.addWidget(placeholder_label)
+        self.ResultDendroAndStatsTab = QtWidgets.QWidget()
+        self.ResultDendroAndStatsTabLayout = QtWidgets.QVBoxLayout(self.ResultDendroAndStatsTab)
+  
+        #plotting widget make it self so we can update tabs in real time when new result is generated/deleted
+        self.PlottingTabWidget = QtWidgets.QTabWidget()
 
         #add the dendro pre plot tab to the plotting layout
-        PlottingTabWidget.addTab(DendroGramTresh, "Pre-plot Dendrogram with threshold")
+        self.PlottingTabWidget.addTab(PrePlotDendrogram(self.ccClusterLogPath_text, self.ShowThreshold, self.realTimeUpdate.setupCC), "Pre-plot Dendrogram with threshold")
         
         #setup tabs for each merged result
         if not self.MergeResult:
             self.update_ccClusterStatusBar(f"No merged result found in {self.realTimeUpdate.shareWorkDir}, please check")
         else:
-            #set up the tab for Dendrogram and statistics
-            for result_folder in self.MergeResult:
-                dendrogram_path = os.path.join(result_folder, "dendrogram.png")
-                xscale_path = os.path.join(result_folder, "XSCALE.LP")
-                if not os.path.isfile(dendrogram_path):
-                    self.update_ccClusterStatusBar(f"No dendrogram.png found in {result_folder}, please check")
-                    continue
-                if not os.path.isfile(xscale_path):
-                    self.update_ccClusterStatusBar(f"No XSCALE.LP found in {result_folder}, please check")
-                    continue
-
-                #set up the tab for Dendrogram and statistics
-                resultTab = QtWidgets.QTabWidget()
-
-                #add dendrogram plot for the result as a tab
-                DendrogramTab = DendrogramPlotProcessed(dendrogram_path)
-                resultTab.addTab(DendrogramTab, "Dendrogram")
-
-                #set up the tab for statistics from XSCALE.LP
-                XSCALEStatTab = XSCALEStat(xscale_path)
-                resultTab.addTab(XSCALEStatTab, "XSCALE Statistics")
-
-                #plot The statistics from XSCALE.LP
-                resultTab.addTab(SinglePlotTab(xscale_path), "XSCALE Statistics Plot")
-                PlottingTabWidget.addTab(resultTab, result_folder)
+            self.SyncResultTabs()
 
         #add tab to the main widget
-            plotDendroAndStatisticLayout.addWidget(self.titleWidget)
-            plotDendroAndStatisticLayout.addWidget(PlottingTabWidget)
+            self.ResultDendroAndStatsTabLayout.addWidget(self.PlottingTabWidget)
             
 
 
-class tab_plotStats():
+class tab_plotStats(QtWidgets.QWidget):
     def __init__(self, realTimeUpdates:MainWindow, **kwargs):
         super().__init__()
         #get real time update from self of MainWindow
@@ -678,12 +746,14 @@ class MainWindow(QtWidgets.QMainWindow):
         ###to enalbe realtime update on lineEdit
         self.Tab_ccCal = tab_ccCal(self)
         self.Tab_ccCluster = tab_ccCluster(self)
-        self.Tab_plotStats = tab_plotStats(self)
+        #self.Tab_plotStats = tab_plotStats(self)
 
         #add tabs
+        self.tabWidget = QtWidgets.QTabWidget()
+        self.setCentralWidget(self.tabWidget)
         self.tabWidget.addTab(self.Tab_ccCal, "ccCal tab")
         self.tabWidget.addTab(self.Tab_ccCluster, "ccCluster tab")
-        self.tabWidget.addTab(self.Tab_plotStats, "Plot statistics tab")
+        #self.tabWidget.addTab(self.Tab_plotStats, "Plot statistics tab")
 
         #Set up main window
         self.setObjectName("MainWindow")

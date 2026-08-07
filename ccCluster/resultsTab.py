@@ -16,7 +16,9 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-from Pathlib import Path
+from pathlib import Path
+from scipy.cluster import hierarchy
+from .clustering import Clustering
 
 # implement the default mpl key bindings
 
@@ -54,7 +56,7 @@ def extractXSCALEStat(XSCALEFile):
 class SinglePlotTab(QtWidgets.QWidget):
     def __init__(self, ProcessedDir:str):
         super().__init__()
-        QtWidgets.QWidget.__init__(self)
+
         self.ProcessedDir= ProcessedDir
         #setup widget
         self.tabLayout= QtWidgets.QVBoxLayout(self)
@@ -63,7 +65,8 @@ class SinglePlotTab(QtWidgets.QWidget):
         self.Title.setText(f"Threshold: {ResultName[2]} and Group number: {ResultName[3]}")
 
         #set up the plot
-        self.statsPlot, self.Ax= plt.subplots()
+        self.statsPlot = Figure()
+        self.Ax = self.statsPlot.add_subplot(111)
         self.statsCanvas = FigureCanvas(self.statsPlot)
         self.statsBar= NavigationToolbar(self.statsCanvas, self)
 
@@ -127,9 +130,10 @@ class MultiPlotTab(QtWidgets.QWidget):
         self.Title.setText(f"Multi statistics for {len(self.ProcessedDirs)} processed directories")
 
         #set up the plot
-        self.MultiStatusPlots, self.Ax= plt.subplots()
+        self.MultiStatusPlots = Figure()
+        self.Ax = self.MultiStatusPlots.add_subplot(111)
         self.MultiStatsCanvas = FigureCanvas(self.MultiStatusPlots)
-        self.statsBar= NavigationToolbar(self.MultiStatsCanvas, self)
+        self.MultiplestatsBar= NavigationToolbar(self.MultiStatsCanvas, self)
 
         #Buttons to plot stats
         self.buttonBar = QtWidgets.QWidget()
@@ -163,7 +167,7 @@ class MultiPlotTab(QtWidgets.QWidget):
 
         self.tabLayout.addWidget(self.Title)
         self.tabLayout.addWidget(self.buttonBar)
-        self.tabLayout.addWidget(self.statsBar)
+        self.tabLayout.addWidget(self.MultiplestatsBar)
         self.tabLayout.addWidget(self.MultiStatsCanvas)
 
 
@@ -209,3 +213,98 @@ class MultiPlotTab(QtWidgets.QWidget):
 
         #plot the figure
         self.MultiStatsCanvas.draw()
+
+
+
+#create pre-plot dendrogram tab to plot the dendrogram with given Threshold
+class PrePlotDendrogram(QtWidgets.QWidget):
+    def __init__(self, ccClusterfile:QtWidgets.QLineEdit, Threshold:QtWidgets.QLineEdit, setupCC_method):
+        super().__init__()
+        self.ccClusterfile_widget = ccClusterfile
+        self.threshold_widget = Threshold
+        self.setupCC_method = setupCC_method
+
+        #setup widget
+        self.tabLayout = QtWidgets.QVBoxLayout(self)
+        self.Title=QtWidgets.QLabel(self)
+        self.Title.setText(f"Dendrogram with threshold: {self.threshold_widget.text().strip() if self.threshold_widget else ''}")
+    
+        #set up the plot
+        self.dendroPlot = Figure()
+        self.Ax = self.dendroPlot.add_subplot(111)
+        self.dendroCanvas = FigureCanvas(self.dendroPlot)
+        self.dendrostatsBar= NavigationToolbar(self.dendroCanvas, self)
+
+        #plot button
+        self.plotButton = QtWidgets.QPushButton("Plot Dendrogram")
+        self.plotButton.clicked.connect(self.on_plot_clicked)
+
+        #add widgets to layout
+        self.tabLayout.addWidget(self.Title)
+        self.tabLayout.addWidget(self.plotButton)
+        self.tabLayout.addWidget(self.dendrostatsBar)
+        self.tabLayout.addWidget(self.dendroCanvas)
+
+
+    #check whether the threshold is valid float and plot the dendrogram
+    def on_plot_clicked(self):
+        #get current values from the widgets
+        ccClusterfile = self.ccClusterfile_widget.text() if self.ccClusterfile_widget else None
+        threshold_text = self.threshold_widget.text().strip() if self.threshold_widget else None
+        
+        if threshold_text:
+            try:
+                threshold = float(threshold_text)
+                self.PlotDendrogram(ccClusterfile, threshold)
+            except ValueError:
+                #Show error for invalid threshold
+                self.Ax.clear()
+                self.Ax.text(0.5, 0.5, "Invalid threshold value", 
+                            horizontalalignment='center', verticalalignment='center')
+                self.dendroCanvas.draw()
+        else:
+            self.PlotDendrogram(ccClusterfile, None)
+
+
+    #prepare Dendrogram with current threshold
+    def PlotDendrogram(self, ccClusterfile:str=None, threshold:float=None):
+        #Clean plot
+        self.Ax.clear()
+        
+        # Check parameters
+        if ccClusterfile is None:
+            self.Ax.text(0.5, 0.5, "No ccCluster file in Work dir", \
+                         horizontalalignment='center', verticalalignment='center')
+            self.dendroCanvas.draw()
+            return None
+        
+        if threshold is None:
+            self.Ax.text(0.5, 0.5, "No threshold provided", \
+                         horizontalalignment='center', verticalalignment='center')
+            self.dendroCanvas.draw()
+            return None
+
+        #set up CC
+        _, Tree, _, _ = self.setupCC_method(ccClusterfile)
+
+        #check whether the dendrogram tree is valid
+        if Tree is None:
+            self.Ax.text(0.5, 0.5, "Error: Could not generate dendrogram",
+                        horizontalalignment='center', verticalalignment='center')
+            self.dendroCanvas.draw()
+            return None
+
+        X = hierarchy.dendrogram(Tree, color_threshold=threshold, ax=self.Ax)
+
+        #Show figure legend about what color is what cluster
+        legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
+                            for i, c in enumerate(dict.fromkeys(X['color_list'])) \
+                            if c not in ['C0', 'k', 'grey']]
+        self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
+                       borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
+
+        self.dendroPlot.tight_layout()
+        self.Title.setText(f"Dendrogram with threshold: {threshold}")
+
+        #plot the figure
+        self.dendroCanvas.draw()
