@@ -113,11 +113,11 @@ class tab_ccCal(QWidget):
         #check ccClusterlog.txt when change the work dir:
         self.WorkDir_entry.textChanged.connect(self.check_ccCalLogStatus)
         #update the result list in ccCluster tab when work dir changed
-        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.tab_ccCluster.CheckAndShowResult)
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.Tab_ccCluster.CheckAndShowResult)
 
         #select workdir button
         self.ChooseWorkDir = QtWidgets.QPushButton("Select work dir")
-        self.ChooseWorkDir.clicked.connect(self.select_workDir)
+        self.ChooseWorkDir.clicked.connect(self.select_WorkDir)
 
         #create layout and add the content (button etc)
         layout = QtWidgets.QVBoxLayout(self.general_widget)
@@ -171,7 +171,7 @@ class tab_ccCal(QWidget):
 
         #put hkltext and button together
         self.hkladdfileswidget = QtWidgets.QWidget()
-        self.hkladdfileslayout = QtWidgets.QVBoxLayout(self.hkladdfileswidget)   
+        self.hkladdfileslayout = QtWidgets.QHBoxLayout(self.hkladdfileswidget)   
         self.hkladdfileslayout.addWidget(self.insert_HKLPaths, 1)
         self.hkladdfileslayout.addWidget(self.SearchDir, 4)
         self.hkladdfileslayout.addWidget(self.FileName, 2)
@@ -295,7 +295,6 @@ class tab_ccCluster(QWidget):
 
         #read processed result in WorkDir:
         self.MergeResult = []
-        self.CheckAndShowResult()
 
         #vertical layout
         self.ccCluster_layout = QtWidgets.QVBoxLayout(self)
@@ -305,7 +304,8 @@ class tab_ccCluster(QWidget):
         #set up plot area
         self.plotDendroAndStatistic_area()
 
-        #other parameters
+        #other things
+        self.CheckAndShowResult()
 
         #Add widget to the layout
         self.ccCluster_layout.addWidget(self.ccClusterSetup_widget, 1)
@@ -435,11 +435,9 @@ class tab_ccCluster(QWidget):
 
         #update the ccClusterLog.txt status
         if os.path.isfile(ccClusterLog):
-            self.ccCallog_status.setText(f"ccClusterLog.txt found: {ccClusterLog}")
-            self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
+            self.self.ccClusterLogPath_text.setText(f"ccClusterLog.txt found: {ccClusterLog}")
         else:
-            self.ccCallog_status.setText(f"ccClusterLog.txt not found in {self.workDir.text()}. Please generate one or select a different path")
-            self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
+            self.self.ccClusterLogPath_text.setText(f"ccClusterLog.txt not found in {self.workDir.text()}. Please generate one or select a different path")
 
 
     #update ccCluster bar:
@@ -696,6 +694,8 @@ class tab_ccCluster(QWidget):
         #update log
         status_msg = f"Synced tabs: +{len(tabs_to_add)} added, -{len(tabs_to_remove)} removed"
         self.update_ccClusterStatusBar(status_msg)
+        print(f"wprkdir: {self.realTimeUpdate.shareWorkDir}")
+        print(self.MergeResult)
         print(status_msg)
 
 
@@ -744,8 +744,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
         ###pass the self of MainWindow to the tabs as argument
         ###to enalbe realtime update on lineEdit
-        self.Tab_ccCal = tab_ccCal(self)
         self.Tab_ccCluster = tab_ccCluster(self)
+        self.Tab_ccCal = tab_ccCal(self)
         #self.Tab_plotStats = tab_plotStats(self)
 
         #add tabs
@@ -791,6 +791,7 @@ class MainWindow(QtWidgets.QMainWindow):
         CC = Clustering(correlationFile, self.shareWorkDir)
         Tree = CC.avgTree() #needed, for set up self.Tree in clustering.py
         etiquets = CC.createLabels()
+        text = f"CC setup successful: {correlationFile}"
         return CC, Tree, etiquets, text
 
 
