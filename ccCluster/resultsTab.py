@@ -26,6 +26,7 @@ from .clustering import Clustering
 import sys
 import os
 import subprocess
+import matplotlib.patches as mpatches
 
 #Read XSCALE.LP and extract information to plot the statistics
 def extractXSCALEStat(XSCALEFile):

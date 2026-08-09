@@ -194,7 +194,7 @@ class tab_ccCal(QWidget):
             if hkl_files:
                 for hkl_file in hkl_files:
                     if os.path.isfile(hkl_file) and Path(hkl_file).suffix.lower() == ".hkl":
-                        print(f"{colors.BLUE}Adding {hkl_file} to the HKL merge list")
+                        print(f"{colors.GREEN}Adding {hkl_file} to the HKL merge list")
                         abs_file_list.append(os.path.abspath(hkl_file))
                     else:
                         print(f"{colors.RED}No HKL file: {hkl_file}, please check{colors.ENDC}")
@@ -545,14 +545,17 @@ class tab_ccCluster(QWidget):
         for folder_path in abs_FolderPaths.glob("cc_Cluster_*"):
             if folder_path.is_dir():
                 if not (folder_path/"XSCALE.LP").is_file():
+                    print(f"No XSCALE.LP found in {folder_path}, please check")
                     self.update_ccClusterStatusBar(f"No XSCALE.LP found in {folder_path}, please check")
                     continue
-                if not (folder_path/"dendrogram.png").is_file():
+                if not (folder_path/"Dendrogram.png").is_file():
+                    print(f"No dendrogram.png found in {folder_path}, please check")
                     self.update_ccClusterStatusBar(f"No dendrogram.png found in {folder_path}, please check")
                     continue
-                if (folder_path/"XSCALE.LP").is_file() and (folder_path/"dendrogram.png").is_file():
+                if (folder_path/"XSCALE.LP").is_file() and (folder_path/"Dendrogram.png").is_file():
                     folder_name = folder_path.name
                     if folder_name not in self.MergeResult:
+                        print(f"find result folder: {folder_path}")
                         self.MergeResult.append(folder_name)
             else:
                 print(f"{colors.RED}Folder path does not exist: {folder_path}{colors.ENDC}")
@@ -560,12 +563,13 @@ class tab_ccCluster(QWidget):
         #remove the not existing result folder from the list
         Exist_results = []
         for result_folder in self.MergeResult:
+            print(f"result folder name: {result_folder}")
             abs_result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_folder)
             if not os.path.isdir(abs_result_folder):
                 self.update_ccClusterStatusBar(f"Result folder {abs_result_folder} does not exist, remove it from the list")
             elif not os.path.isfile(os.path.join(abs_result_folder, "XSCALE.LP")):
                 self.update_ccClusterStatusBar(f"No XSCALE.LP found in {abs_result_folder}, remove it from the list")
-            elif not os.path.isfile(os.path.join(abs_result_folder, "dendrogram.png")):
+            elif not os.path.isfile(os.path.join(abs_result_folder, "Dendrogram.png")):
                 self.update_ccClusterStatusBar(f"No dendrogram.png found in {abs_result_folder}, remove it from the list")
             else:
                 Exist_results.append(result_folder)
@@ -694,7 +698,7 @@ class tab_ccCluster(QWidget):
         #update log
         status_msg = f"Synced tabs: +{len(tabs_to_add)} added, -{len(tabs_to_remove)} removed"
         self.update_ccClusterStatusBar(status_msg)
-        print(f"wprkdir: {self.realTimeUpdate.shareWorkDir}")
+        print(f"workdir: {self.realTimeUpdate.shareWorkDir}")
         print(self.MergeResult)
         print(status_msg)
 
@@ -718,7 +722,7 @@ class tab_ccCluster(QWidget):
             self.SyncResultTabs()
 
         #add tab to the main widget
-            self.ResultDendroAndStatsTabLayout.addWidget(self.PlottingTabWidget)
+        self.ResultDendroAndStatsTabLayout.addWidget(self.PlottingTabWidget)
             
 
 
