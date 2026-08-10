@@ -78,10 +78,6 @@ class tab_ccCal(QWidget):
         #get real time update
         self.realTimeUpdate = realTimeUpdates
 
-        #set initial work dir as pwd and pass it to shared place
-        self.WorkDir = os.getcwd()
-        self.realTimeUpdate.updateWorkDir(self.WorkDir)
-
         #vertical layout
         self.ccCal_layout = QtWidgets.QVBoxLayout(self)
 
@@ -113,7 +109,8 @@ class tab_ccCal(QWidget):
         #check ccClusterlog.txt when change the work dir:
         self.WorkDir_entry.textChanged.connect(self.check_ccCalLogStatus)
         #update the result list in ccCluster tab when work dir changed
-        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.Tab_ccCluster.CheckAndShowResult)
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.Tab_ccCluster.UpdateResultAndSyncTabs)
+        self.WorkDir_entry.textChanged.connect(self.realTimeUpdate.Tab_ccCluster.auto_select_ccClusterLogPath)
 
         #select workdir button
         self.ChooseWorkDir = QtWidgets.QPushButton("Select work dir")
@@ -257,20 +254,25 @@ class tab_ccCal(QWidget):
         if not target_folder_text:
             print(f"{colors.RED}Please put a target folder for searching HKL files{colors.ENDC}")
             return
-        if glob.glob(target_folder_text) == []:
+        
+        if not FileName:
+            print(f"{colors.RED}Please enter a file name or pattern to search{colors.ENDC}")
+            return
+
+        folder_paths = glob.glob(target_folder_text)
+        if not folder_paths:
             print(f"{colors.RED}No folder found: {target_folder_text}{colors.ENDC}")
             return
 
-        for path in glob.glob(target_folder_text):
-            if os.path.isdir(path):
-                absolute_target_folder = os.path.abspath(path)
-                for root, dirs, files in os.walk(absolute_target_folder):
-                    if FileName in files:
-                        full_path = os.path.join(root, FileName)
-                        matching_files.append(full_path)
-                        print(f"{colors.BLUE}Found: {full_path}{colors.ENDC}")
+        for folder in folder_paths:
+            if os.path.isdir(folder):
+                for file_path in Path(folder).glob(f"**/{FileName}"):
+                    if file_path.is_file():
+                        abs_path = str(file_path.absolute())
+                        matching_files.append(abs_path)
+                        print(f"{colors.BLUE}Found: {abs_path}{colors.ENDC}")
             else:
-                print(f"{colors.RED}Folder does not exist: {path}{colors.ENDC}")
+                print(f"{colors.RED}Folder does not exist: {folder}{colors.ENDC}")
         
         if matching_files:
             matching_files.sort()
@@ -293,9 +295,6 @@ class tab_ccCluster(QWidget):
         #get real time update
         self.realTimeUpdate = realTimeUpdates
 
-        #read processed result in WorkDir:
-        self.MergeResult = []
-
         #vertical layout
         self.ccCluster_layout = QtWidgets.QVBoxLayout(self)
 
@@ -303,9 +302,6 @@ class tab_ccCluster(QWidget):
         self.ccClusterSetup_area()
         #set up plot area
         self.plotDendroAndStatistic_area()
-
-        #other things
-        self.CheckAndShowResult()
 
         #Add widget to the layout
         self.ccCluster_layout.addWidget(self.ccClusterSetup_widget, 1)
@@ -355,7 +351,8 @@ class tab_ccCluster(QWidget):
         self.anomBox.setChecked(False)
 
         #status bar to show information and button to run ccCluster job
-        self.ccClusterStatusBar = QtWidgets.QLabel()
+        self.ccClusterStatusBar = QtWidgets.QLineEdit()
+        self.ccClusterStatusBar.setReadOnly(True)
         self.update_ccClusterStatusBar("ready to work")
         self.RunccCluster = QtWidgets.QPushButton("Run ccCluster")
         self.RunccCluster.clicked.connect(self.submit_ccCluster)
@@ -431,17 +428,18 @@ class tab_ccCluster(QWidget):
 
     #Auto select ccCluster log file if exists in work Dir
     def auto_select_ccClusterLogPath(self):
-        ccClusterLog = os.path.join(self.workDir.text(), "ccClusterLog.txt")
+        ccClusterLog = os.path.join(self.realTimeUpdate.updateWorkDir, "ccClusterLog.txt")
 
         #update the ccClusterLog.txt status
         if os.path.isfile(ccClusterLog):
-            self.self.ccClusterLogPath_text.setText(f"ccClusterLog.txt found: {ccClusterLog}")
+            self.ccClusterLogPath_text.setText(f"ccClusterLog.txt found: {ccClusterLog}")
         else:
-            self.self.ccClusterLogPath_text.setText(f"ccClusterLog.txt not found in {self.workDir.text()}. Please generate one or select a different path")
+            self.ccClusterLogPath_text.setText(f"ccClusterLog.txt not found in {self.realTimeUpdate.updateWorkDir}. Please generate one or select a different path")
 
 
     #update ccCluster bar:
     def update_ccClusterStatusBar(self, status:str):
+        print(f"{status}")
         self.ccClusterStatusBar.setText(f"{status}")
         #self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
 
@@ -468,11 +466,14 @@ class tab_ccCluster(QWidget):
             ThresholdValue = self.ShowThreshold.text().strip()
             if ThresholdValue:
                 try:
-                    threshold_val = float(ThresholdValue)
+                    threshold_val = round(float(ThresholdValue), 2)
                     GroupNum, largestGroup, totalHKL = CC.checkMultiplicity(threshold_val)
-                    self.update_ccClusterStatusBar(f"Auto Threshold is {threshold_val}, \
-                                                   the largest cluster number is {GroupNum} \
-                                                    with {largestGroup}/{totalHKL} files")
+                    self.update_ccClusterStatusBar(
+                                                    f"Auto Threshold is {threshold_val}, "
+                                                    f"the largest cluster number is {GroupNum} "
+                                                    f"with {largestGroup}/{totalHKL} files"
+                                                    )
+                    self.ShowLargestGroup.setText(f"Largest Group: {GroupNum} HKLs: {largestGroup}/{totalHKL}")
                 except ValueError:
                     self.update_ccClusterStatusBar("Threshold must be a valid number (e.g., 0.5)")
             else:
@@ -518,7 +519,7 @@ class tab_ccCluster(QWidget):
                     CC.aimlessRun(anomlous, threshold, pointless_path)
 
                 #update result
-                self.CheckAndShowResult()
+                self.UpdateResultAndSyncTabs()
                 self.ccClusterStatusBar.setText(f"ccCluster job finished, please check the result in {pointless_path}")
 
             #CC.passOInfoToGA(threshold, etiquets, anomlous)
@@ -536,48 +537,13 @@ class tab_ccCluster(QWidget):
                 self.ccClusterStatusBar.setText(f"No statistcs as the input file is mtz, check results in: {pointless_path}")
             else:
                 self.update_ccClusterStatusBar(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
-                print(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
 
 
-    #Update results folder list, will be used by the result compare tab
-    def CheckAndShowResult(self):
-        abs_FolderPaths = Path(os.path.abspath(self.realTimeUpdate.shareWorkDir))
-        for folder_path in abs_FolderPaths.glob("cc_Cluster_*"):
-            if folder_path.is_dir():
-                if not (folder_path/"XSCALE.LP").is_file():
-                    print(f"No XSCALE.LP found in {folder_path}, please check")
-                    self.update_ccClusterStatusBar(f"No XSCALE.LP found in {folder_path}, please check")
-                    continue
-                if not (folder_path/"Dendrogram.png").is_file():
-                    print(f"No dendrogram.png found in {folder_path}, please check")
-                    self.update_ccClusterStatusBar(f"No dendrogram.png found in {folder_path}, please check")
-                    continue
-                if (folder_path/"XSCALE.LP").is_file() and (folder_path/"Dendrogram.png").is_file():
-                    folder_name = folder_path.name
-                    if folder_name not in self.MergeResult:
-                        print(f"find result folder: {folder_path}")
-                        self.MergeResult.append(folder_name)
-            else:
-                print(f"{colors.RED}Folder path does not exist: {folder_path}{colors.ENDC}")
-
-        #remove the not existing result folder from the list
-        Exist_results = []
-        for result_folder in self.MergeResult:
-            print(f"result folder name: {result_folder}")
-            abs_result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_folder)
-            if not os.path.isdir(abs_result_folder):
-                self.update_ccClusterStatusBar(f"Result folder {abs_result_folder} does not exist, remove it from the list")
-            elif not os.path.isfile(os.path.join(abs_result_folder, "XSCALE.LP")):
-                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {abs_result_folder}, remove it from the list")
-            elif not os.path.isfile(os.path.join(abs_result_folder, "Dendrogram.png")):
-                self.update_ccClusterStatusBar(f"No dendrogram.png found in {abs_result_folder}, remove it from the list")
-            else:
-                Exist_results.append(result_folder)
-
-        self.MergeResult = Exist_results
-
-        self.MergeResult.sort()
+    def UpdateResultAndSyncTabs(self):
+        self.realTimeUpdate.CheckAndShowResult()
         self.SyncResultTabs()
+        self.realTimeUpdate.Tab_plotStats.SyncResultTabs()
+
 
     #prepare DendroGram tab from png for the result folder
     def DendrogramFromPNG(self, dendrogram_path:str):
@@ -618,13 +584,14 @@ class tab_ccCluster(QWidget):
     #function to add result tab in the self.PlottingTabWidget for realtime update when new result is generated or deleted
     def CreateResultTabs(self, result_name:str):
         result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_name)
-        dendrogram_path = os.path.join(result_folder, "dendrogram.png")
+        dendrogram_path = os.path.join(result_folder, "Dendrogram.png")
         xscale_path = os.path.join(result_folder, "XSCALE.LP")
 
         #check if the dendrogram.png and XSCALE.LP exist in the result folder
         if not os.path.isfile(dendrogram_path):
-            self.update_ccClusterStatusBar(f"No dendrogram.png found in {result_folder}, please check")
+            self.update_ccClusterStatusBar(f"No Dendrogram.png found in {result_folder}, please check")
             return
+
         if not os.path.isfile(xscale_path):
             self.update_ccClusterStatusBar(f"No XSCALE.LP found in {result_folder}, please check")
             return
@@ -642,7 +609,7 @@ class tab_ccCluster(QWidget):
         resultTab.addTab(self.CreateXSCALEStatTab(xscale_path), "XSCALE Statistics")
 
         #plot The statistics from XSCALE.LP
-        resultTab.addTab(SinglePlotTab(xscale_path), "XSCALE Statistics Plot")
+        resultTab.addTab(SinglePlotTab(result_folder), "XSCALE Statistics Plot")
 
         #Return tabs for the result, will be added to the self.PlottingTabWidget
         return resultTab
@@ -653,6 +620,7 @@ class tab_ccCluster(QWidget):
         #check if self.PlottingTabWidget exists
         if not hasattr(self, 'PlottingTabWidget') or self.PlottingTabWidget is None:
             return
+
         #Find the tabs and remove it saftely
         for i in range(self.PlottingTabWidget.count()):
             if self.PlottingTabWidget.tabText(i) == result_name:
@@ -668,39 +636,43 @@ class tab_ccCluster(QWidget):
 
     #sync the result tabs with the self.MergeResult list, remove non-existing result tabs from the self.PlottingTabWidget
     def SyncResultTabs(self):
+        print(f"Syncing result tabs with MergeResult list: {self.realTimeUpdate.MergeResult}")
         #check if self.PlottingTabWidget exists
         if not hasattr(self, 'PlottingTabWidget') or self.PlottingTabWidget is None:
+            print(f"{colors.RED}PlottingTabWidget does not exist, cannot sync result tabs{colors.ENDC}")
             return
 
         #update the Tab list
         tablist = []
         for i in range(self.PlottingTabWidget.count()):
             tab_text = self.PlottingTabWidget.tabText(i)
+            print(f"Existing tab: {tab_text}")
             # Skip the pre-plot tab
             if tab_text != "Pre-plot Dendrogram with threshold":
                 tablist.append(tab_text)
 
         #get list of tabs to add and remove
-        tabs_to_add = [f for f in self.MergeResult if f not in tablist]
-        tabs_to_remove = [f for f in tablist if f not in self.MergeResult]
+        tabs_to_add = [f for f in self.realTimeUpdate.MergeResult if f not in tablist]
+        tabs_to_remove = [f for f in tablist if f not in self.realTimeUpdate.MergeResult]
 
         #add ResultTabs
         for folder_name in tabs_to_add:
             resultPlotTab  = self.CreateResultTabs(folder_name)
             if resultPlotTab is not None:
-                self.PlottingTabWidget.addTab(resultPlotTab , folder_name)
+                self.update_ccClusterStatusBar(f"Adding result tab for {folder_name}")
+                self.PlottingTabWidget.addTab(resultPlotTab, folder_name)
                 self.update_ccClusterStatusBar(f"Added result tab for {folder_name}")
 
         #remove ResultTabs
         for folder_name in tabs_to_remove:
+            self.update_ccClusterStatusBar(f"Removing result tab for {folder_name}")
             self.RemoveResultTabs(folder_name)
+            self.update_ccClusterStatusBar(f"Removed result tab for {folder_name}")
 
         #update log
         status_msg = f"Synced tabs: +{len(tabs_to_add)} added, -{len(tabs_to_remove)} removed"
         self.update_ccClusterStatusBar(status_msg)
         print(f"workdir: {self.realTimeUpdate.shareWorkDir}")
-        print(self.MergeResult)
-        print(status_msg)
 
 
     #create tabs in the Result tab to show dendrogram and statistics for each merged result
@@ -716,14 +688,14 @@ class tab_ccCluster(QWidget):
         self.PlottingTabWidget.addTab(PrePlotDendrogram(self.ccClusterLogPath_text, self.ShowThreshold, self.realTimeUpdate.setupCC), "Pre-plot Dendrogram with threshold")
         
         #setup tabs for each merged result
-        if not self.MergeResult:
+        if not self.realTimeUpdate.MergeResult:
             self.update_ccClusterStatusBar(f"No merged result found in {self.realTimeUpdate.shareWorkDir}, please check")
         else:
             self.SyncResultTabs()
 
         #add tab to the main widget
         self.ResultDendroAndStatsTabLayout.addWidget(self.PlottingTabWidget)
-            
+
 
 
 class tab_plotStats(QtWidgets.QWidget):
@@ -732,10 +704,120 @@ class tab_plotStats(QtWidgets.QWidget):
         #get real time update from self of MainWindow
         self.realTimeUpdate = realTimeUpdates
 
-        #get self from ccCluster tab to get the result list
-        self.ccClusterTab = self.realTimeUpdate.Tab_ccCluster
-        #setup buttons
+        #selected file list for plotting, will be updated when new result is generated or deleted
+        self.selectedList = []
 
+        #vertical layout
+        self.plotStats_layout = QtWidgets.QVBoxLayout(self)
+
+        #set up buttons
+        self.ResultSelection_area()
+        #set up plot area
+        self.CompareResults_area()
+
+        #Add widget to the layout
+        self.plotStats_layout.addWidget(self.ResultSelectionWidget, 1)
+        self.plotStats_layout.addWidget(self.CompareResultsWidget, 3)
+
+
+    def ResultSelection_area(self):      
+        self.ResultSelectionWidget = QtWidgets.QListWidget()
+        self.ResultSelectionWidget.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        self.ResultSelectionWidget.setMinimumHeight(150)
+        self.ResultSelectionWidget.setMaximumHeight(300)
+
+        #set up scroll bar for the list widget
+        self.ResultSelectionWidget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.ResultSelectionWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+
+        #connect the selection change signal to the plot function
+        self.ResultSelectionWidget.itemSelectionChanged.connect(self.ReadAndPlotSelectedResult)
+
+
+    def CompareResults_area(self):
+        #create a widget to hold the plot area
+        self.CompareResultsWidget = QtWidgets.QWidget()
+        self.CompareResultsLayout = QtWidgets.QVBoxLayout(self.CompareResultsWidget)
+        self.ComparetitleWidget = QtWidgets.QLabel("Show result Dendrogram and statistics for each merged result")
+
+        #create a widget to hold the plot area for XSCALE statistics comparison
+        self.XSCALECompareWidget = QtWidgets.QTabWidget()
+        self.XSCALEComparelayout = QtWidgets.QVBoxLayout(self.XSCALECompareWidget)
+
+        XSCALECompareplaceholder = QtWidgets.QLabel("Select folders from the list above to compare XSCALE statistics")
+        XSCALECompareplaceholder.setAlignment(QtCore.Qt.AlignCenter)
+        self.XSCALECompareWidget.addTab(XSCALECompareplaceholder, "No Selection")
+
+        self.CompareResultsLayout.addWidget(self.ComparetitleWidget, 1)
+        self.CompareResultsLayout.addWidget(self.XSCALECompareWidget, 19)
+
+
+    #sync the result list in the selection widget with the result list in the ccCluster tab
+    #pass this function to the ccCluster tab to update the result list in real time when new result is generated or deleted
+    #thus we need to have Tab_plotStats called before Tab_ccCluster in the MainWindow class
+    def syncResultList(self):
+        print(f"Syncing result list with MergeResult: {self.realTimeUpdate.MergeResult}")
+        
+        if not hasattr(self, 'ResultSelectionWidget') or self.ResultSelectionWidget is None:
+            print(f"{colors.RED}ResultSelectionWidget does not exist{colors.ENDC}")
+            return
+        
+        #Save current selection
+        current_selection = []
+        for selecteditem in self.ResultSelectionWidget.selectedItems():
+            current_selection.append(selecteditem.text())
+        print(f"Current selection preserved: {current_selection}")
+        
+        # Clear and repopulate
+        self.ResultSelectionWidget.clear()
+        for resultName in self.realTimeUpdate.MergeResult:
+            self.ResultSelectionWidget.addItem(resultName)
+        
+        #Restore selection
+        for i in range(self.ResultSelectionWidget.count()):
+            item = self.ResultSelectionWidget.item(i)
+            if item.text() in current_selection:
+                item.setSelected(True)
+                print(f"Restored selection: {item.text()}")
+        
+        # Update status
+        count = self.ResultSelectionWidget.count()
+        selected_count = len(self.ResultSelectionWidget.selectedItems())
+        print(f"Result list updated: {count} folders, {selected_count} selected")
+
+
+    #update the result list in the selection widget when new result is generated or deleted
+    def UpdateResultList(self):
+        self.selectedList = []
+    
+        for item in self.ResultSelectionWidget.selectedItems():
+            self.selectedList.append(item.text())
+
+        print(f"Updated selectedList: {self.selectedList}")
+
+
+    #Plot the selected result folders in the selection widget it will be one tab for refresh the result list and plot the selected result folders
+    def PlotSelectedResult(self):
+        #remove tabs:
+        while self.XSCALECompareWidget.count() > 0:
+            self.XSCALECompareWidget.removeTab(0)
+
+        #add tabs for the selected result folders
+        if self.selectedList:
+            abs_ResultDirList = [f"{os.path.abspath(self.realTimeUpdate.shareWorkDir)}/{i}" for i in self.selectedList if os.path.isfile(f"{os.path.abspath(self.realTimeUpdate.shareWorkDir)}/{i}/XSCALE.LP")]
+            self.XSCALECompareWidget.addTab(MultiPlotTab(abs_ResultDirList), f"Plotted {len(self.selectedList)} folder(s)")
+            print(f"Plotted {len(self.selectedList)} folder(s): {self.selectedList}")
+        else:
+            placeholder = QtWidgets.QLabel("No folders selected. Please select at least one folder.")
+            placeholder.setAlignment(QtCore.Qt.AlignCenter)
+            self.XSCALECompareWidget.addTab(placeholder, "No Selection")
+            print("No result folder selected")
+
+
+    #read updated selectedList from the selection widget and plot the selected result folders
+    def ReadAndPlotSelectedResult(self):
+        self.UpdateResultList()
+        self.PlotSelectedResult()
 
 
 
@@ -744,20 +826,29 @@ class MainWindow(QtWidgets.QMainWindow):
     def __init__(self, **kwargs):
         super().__init__()
         #make one or several linEdit or textEdit accessable to all tabs in realtime
-        self.shareWorkDir = ""
+        #set initial work dir as pwd and pass it to shared place
+        self.WorkDir = os.getcwd()
+        self.updateWorkDir(self.WorkDir)
 
-        ###pass the self of MainWindow to the tabs as argument
-        ###to enalbe realtime update on lineEdit
+        #put the result list in the self of MainWindow, so it can be accessed by all tabs
+        self.MergeResult = []
+        self.CheckAndShowResult()
+        self.Tab_ccCluster.SyncResultTabs()
+
+        #pass the self of MainWindow to the tabs as argument
+        #to enalbe realtime update on lineEdit
+        #DO NOT change the order of the tabs, as the tab_ccCluster is used in tab_plotStats to get the result list
+        self.Tab_plotStats = tab_plotStats(self)
         self.Tab_ccCluster = tab_ccCluster(self)
         self.Tab_ccCal = tab_ccCal(self)
-        #self.Tab_plotStats = tab_plotStats(self)
+        
 
         #add tabs
         self.tabWidget = QtWidgets.QTabWidget()
         self.setCentralWidget(self.tabWidget)
         self.tabWidget.addTab(self.Tab_ccCal, "ccCal tab")
         self.tabWidget.addTab(self.Tab_ccCluster, "ccCluster tab")
-        #self.tabWidget.addTab(self.Tab_plotStats, "Plot statistics tab")
+        self.tabWidget.addTab(self.Tab_plotStats, "Plot statistics tab")
 
         #Set up main window
         self.setObjectName("MainWindow")
@@ -797,6 +888,47 @@ class MainWindow(QtWidgets.QMainWindow):
         etiquets = CC.createLabels()
         text = f"CC setup successful: {correlationFile}"
         return CC, Tree, etiquets, text
+
+        #Update results folder list, will be used by the result compare tab
+    def CheckAndShowResult(self):
+        abs_FolderPaths = Path(os.path.abspath(self.realTimeUpdate.shareWorkDir))
+        for folder_path in abs_FolderPaths.glob("cc_Cluster_*"):
+            if folder_path.is_dir():
+                if not (folder_path/"XSCALE.LP").is_file():
+                    print(f"No XSCALE.LP found in {folder_path}, please check")
+                    self.update_ccClusterStatusBar(f"No XSCALE.LP found in {folder_path}, please check")
+                    continue
+
+                if not (folder_path/"Dendrogram.png").is_file():
+                    print(f"No Dendrogram.png found in {folder_path}, please check")
+                    self.update_ccClusterStatusBar(f"No Dendrogram.png found in {folder_path}, please check")
+                    continue
+
+                if (folder_path/"XSCALE.LP").is_file() and (folder_path/"Dendrogram.png").is_file():
+                    folder_name = folder_path.name
+                    if folder_name not in self.MergeResult:
+                        print(f"find result folder: {folder_path}")
+                        self.MergeResult.append(folder_name)
+            else:
+                print(f"{colors.RED}Folder path does not exist: {folder_path}{colors.ENDC}")
+
+        #remove the not existing result folder from the list
+        Exist_results = []
+        for result_folder in self.MergeResult:
+            print(f"result folder name: {result_folder}")
+            abs_result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_folder)
+            if not os.path.isdir(abs_result_folder):
+                self.update_ccClusterStatusBar(f"Result folder {abs_result_folder} does not exist, remove it from the list")
+            elif not os.path.isfile(os.path.join(abs_result_folder, "XSCALE.LP")):
+                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {abs_result_folder}, remove it from the list")
+            elif not os.path.isfile(os.path.join(abs_result_folder, "Dendrogram.png")):
+                self.update_ccClusterStatusBar(f"No Dendrogram.png found in {abs_result_folder}, remove it from the list")
+            else:
+                Exist_results.append(result_folder)
+
+        self.MergeResult = Exist_results
+
+        self.MergeResult.sort()
 
 
 

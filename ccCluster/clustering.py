@@ -368,7 +368,7 @@ class Clustering():
                     plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
                                borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
 
-                    plt.savefig(abs_run_dir+'/Dendrogram.png', bbox_inches="tight")
+                    plt.savefig(abs_run_dir+'/Dendrogram.png', bbox_inches="tight", dpi=300)
                     subprocess.run('xscale_par',cwd=abs_run_dir)
                     newProcesses.append([thr, self.Best, anomFlag])
             else:

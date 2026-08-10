@@ -32,24 +32,67 @@ import matplotlib.patches as mpatches
 def extractXSCALEStat(XSCALEFile):
     plotList = []
     plotText = ""
+    header = []
+    limit_line = ""
+    
     with open(XSCALEFile, 'r') as LogFile:
+        #Find the line with 'SUBSET OF INTENSITY DATA' to start reading data
         for line in LogFile:
-            if line.strip().startswith('LIMIT'):
+            if "SUBSET OF INTENSITY DATA" in line:
                 break
+        
+        #Read header lines (column names and LIMIT)
+        line1 = None
+        line2 = None
         for line in LogFile:
-            break
+            if line.strip():
+                if line1 is None:
+                    line1 = line.strip()
+                else:
+                    line2 = line.strip()
+                    break
+        
+        #Parse header
+        if line1:
+            header = line1.split()
+        if line2 and "LIMIT" in line2:
+            limit_line = line2
+        
+        #Read data
         for line in LogFile:
-            if line.strip().startswith('total'):
+            if line.strip().startswith("total"):
+                plotList.append(line.split())
                 break
-            plotList.append(line.split())
-
-        #align the columns, use the max length of each column to determine the width
-        if plotList:
-            col_widths = [max(len(row[col_idx]) for row in plotList) + 3 for col_idx in range(len(plotList[0]))]
-            for line in plotList:
-                aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(line))
-                plotText += f"{aligned_line}\n"
-
+            if line.strip():
+                plotList.append(line.split())
+    
+    #Format the output text with aligned columns
+    if plotList and header:
+        col_widths = []
+        for col_idx in range(len(plotList[0])):
+            max_width = max(len(row[col_idx]) for row in plotList)
+            if col_idx < len(header):
+                max_width = max(max_width, len(header[col_idx]))
+            col_widths.append(max_width + 3)
+        
+        #Add header
+        if header:
+            aligned_header = "".join(f"{h:>{col_widths[i]}}" for i, h in enumerate(header) if i < len(col_widths))
+            plotText += f"{aligned_header}\n"
+        
+        #Add LIMIT line
+        if limit_line:
+            first_col_width = col_widths[0] if col_widths else 0
+            plotText += f"{limit_line:<{first_col_width}}\n"
+        
+        #Add separator
+        plotText += "-" * sum(col_widths) + "\n"
+        
+        #Add data rows
+        for row in plotList:
+            aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(row) if i < len(col_widths))
+            plotText += f"{aligned_line}\n"
+    
     return plotList, plotText
 
 
@@ -101,10 +144,10 @@ class SinglePlotTab(QtWidgets.QWidget):
         self.barLayout.addWidget(self.SanoVsR)
         self.barLayout.addWidget(self.IsigmaVsR)
 
-        self.tabLayout.addWidget(self.Title)
-        self.tabLayout.addWidget(self.buttonBar)
-        self.tabLayout.addWidget(self.statsBar)
-        self.tabLayout.addWidget(self.statsCanvas)
+        self.tabLayout.addWidget(self.Title, 1)
+        self.tabLayout.addWidget(self.buttonBar, 1)
+        self.tabLayout.addWidget(self.statsBar, 1)
+        self.tabLayout.addWidget(self.statsCanvas, 17)
         
     def plotStats(self, res, value, title):
         self.Ax.clear()
@@ -166,10 +209,10 @@ class MultiPlotTab(QtWidgets.QWidget):
         self.barLayout.addWidget(self.SanoVsR)
         self.barLayout.addWidget(self.IsigmaVsR)
 
-        self.tabLayout.addWidget(self.Title)
-        self.tabLayout.addWidget(self.buttonBar)
-        self.tabLayout.addWidget(self.MultiplestatsBar)
-        self.tabLayout.addWidget(self.MultiStatsCanvas)
+        self.tabLayout.addWidget(self.Title, 1)
+        self.tabLayout.addWidget(self.buttonBar, 1)
+        self.tabLayout.addWidget(self.MultiplestatsBar, 1)
+        self.tabLayout.addWidget(self.MultiStatsCanvas, 17)
 
 
     #plot the statistics for the selected button
@@ -241,10 +284,10 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.plotButton.clicked.connect(self.on_plot_clicked)
 
         #add widgets to layout
-        self.tabLayout.addWidget(self.Title)
-        self.tabLayout.addWidget(self.plotButton)
-        self.tabLayout.addWidget(self.dendrostatsBar)
-        self.tabLayout.addWidget(self.dendroCanvas)
+        self.tabLayout.addWidget(self.Title, 1)
+        self.tabLayout.addWidget(self.plotButton, 1)
+        self.tabLayout.addWidget(self.dendrostatsBar, 1)
+        self.tabLayout.addWidget(self.dendroCanvas, 17)
 
 
     #check whether the threshold is valid float and plot the dendrogram
@@ -255,7 +298,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         
         if threshold_text:
             try:
-                threshold = float(threshold_text)
+                threshold = round(float(threshold_text), 2)
                 self.PlotDendrogram(ccClusterfile, threshold)
             except ValueError:
                 #Show error for invalid threshold
