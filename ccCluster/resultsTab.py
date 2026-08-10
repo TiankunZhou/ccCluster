@@ -32,66 +32,23 @@ import matplotlib.patches as mpatches
 def extractXSCALEStat(XSCALEFile):
     plotList = []
     plotText = ""
-    header = []
-    limit_line = ""
-    
     with open(XSCALEFile, 'r') as LogFile:
-        #Find the line with 'SUBSET OF INTENSITY DATA' to start reading data
         for line in LogFile:
-            if "SUBSET OF INTENSITY DATA" in line:
+            if line.strip().startswith('LIMIT'):
                 break
-        
-        #Read header lines (column names and LIMIT)
-        line1 = None
-        line2 = None
         for line in LogFile:
-            if line.strip():
-                if line1 is None:
-                    line1 = line.strip()
-                else:
-                    line2 = line.strip()
-                    break
-        
-        #Parse header
-        if line1:
-            header = line1.split()
-        if line2 and "LIMIT" in line2:
-            limit_line = line2
-        
-        #Read data
+            break
         for line in LogFile:
-            if line.strip().startswith("total"):
-                plotList.append(line.split())
+            if line.strip().startswith('total'):
                 break
-            if line.strip():
-                plotList.append(line.split())
-    
-    #Format the output text with aligned columns
-    if plotList and header:
-        col_widths = []
-        for col_idx in range(len(plotList[0])):
-            max_width = max(len(row[col_idx]) for row in plotList)
-            if col_idx < len(header):
-                max_width = max(max_width, len(header[col_idx]))
-            col_widths.append(max_width + 3)
-        
-        #Add header
-        if header:
-            aligned_header = "".join(f"{h:>{col_widths[i]}}" for i, h in enumerate(header) if i < len(col_widths))
-            plotText += f"{aligned_header}\n"
-        
-        #Add LIMIT line
-        if limit_line:
-            first_col_width = col_widths[0] if col_widths else 0
-            plotText += f"{limit_line:<{first_col_width}}\n"
-        
-        #Add separator
-        plotText += "-" * sum(col_widths) + "\n"
-        
-        #Add data rows
-        for row in plotList:
-            aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(row) if i < len(col_widths))
-            plotText += f"{aligned_line}\n"
+            plotList.append(line.split())
+
+        #align the columns, use the max length of each column to determine the width
+        if plotList:
+            col_widths = [max(len(row[col_idx]) for row in plotList) + 3 for col_idx in range(len(plotList[0]))]
+            for line in plotList:
+                aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(line))
+                plotText += f"{aligned_line}\n"
     
     return plotList, plotText
 
@@ -251,7 +208,7 @@ class MultiPlotTab(QtWidgets.QWidget):
         if legend_handles:
             self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),\
                            borderaxespad=0, fontsize="small", title="Directories", title_fontsize="medium")
-            self.MultiStatusPlots.tight_layout(rect=[0, 0, 0.82, 1])
+            self.MultiStatusPlots.tight_layout()
         else:
             self.MultiStatusPlots.tight_layout()
 

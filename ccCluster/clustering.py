@@ -205,7 +205,7 @@ class Clustering():
 
         for a, b in zip (x_list, dy):
             if b == max(dy):
-                return a
+                return round(a, 2)
 
 
     def checkMultiplicity(self, thr):
