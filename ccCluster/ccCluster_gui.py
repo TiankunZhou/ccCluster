@@ -87,9 +87,15 @@ class tab_ccCal(QWidget):
         #set up buttons widget
         self.ccCal_area()
 
+        #separation line:
+        Septline = QtWidgets.QFrame()
+        Septline.setFrameShape(QtWidgets.QFrame.HLine)
+        Septline.setStyleSheet("background-color: #888888; max-height: 3px; border: none; margin: 5px 0;")
+
         #Add widget to the layout
         self.ccCal_layout.addWidget(self.general_widget, 1)
-        self.ccCal_layout.addWidget(self.ccCal_widget, 4)
+        self.ccCal_layout.addWidget(Septline)
+        self.ccCal_layout.addWidget(self.ccCal_widget, 19)
 
 
     #define general area
@@ -117,15 +123,20 @@ class tab_ccCal(QWidget):
         self.ChooseWorkDir.clicked.connect(self.select_WorkDir)
 
         #create layout and add the content (button etc)
-        layout = QtWidgets.QVBoxLayout(self.general_widget)
+        GeneralLayout = QtWidgets.QVBoxLayout(self.general_widget)
 
         #workdir layout
         WorkDir_layout = QtWidgets.QHBoxLayout()
         WorkDir_layout.addWidget(self.WorkDir_entry, 4)
         WorkDir_layout.addWidget(self.ChooseWorkDir, 1)
 
+        #setup title
+        self.generalTitle = QtWidgets.QLabel("General settings")
+        self.generalTitle.setStyleSheet("color: black; font-weight: bold; font-size: 16px;")
+
         #put in main layout
-        layout.addLayout(WorkDir_layout)
+        GeneralLayout.addWidget(self.generalTitle, 1, alignment=QtCore.Qt.AlignCenter)
+        GeneralLayout.addLayout(WorkDir_layout)
 
 
     #define ccCal area
@@ -161,10 +172,11 @@ class tab_ccCal(QWidget):
 
         #button to run ccCla
         self.run_ccCal = QtWidgets.QPushButton("Run ccCal")
+        self.run_ccCal.setFixedSize(200, 50)
         self.run_ccCal.clicked.connect(self.submit_ccCal)
 
         #create main layout
-        layout = QtWidgets.QVBoxLayout(self.ccCal_widget)
+        ccCalLayout = QtWidgets.QVBoxLayout(self.ccCal_widget)
 
         #put hkltext and button together
         self.hkladdfileswidget = QtWidgets.QWidget()
@@ -174,12 +186,18 @@ class tab_ccCal(QWidget):
         self.hkladdfileslayout.addWidget(self.FileName, 2)
         self.hkladdfileslayout.addWidget(self.search_HKL_button, 1)
 
+        #setup title
+        self.ccCalTitle = QtWidgets.QLabel("Check and generate ccClusterlog.txt file")
+        self.ccCalTitle.setStyleSheet("color: black; font-weight: bold; font-size: 16px;")
+
         #other things layout
-        layout.addWidget(self.ccCallog_status)
+        ccCalLayout.addWidget(self.ccCalTitle, alignment=QtCore.Qt.AlignCenter)
+        ccCalLayout.addWidget(self.ccCallog_status, alignment=QtCore.Qt.AlignCenter)
+
         #have hkllayout inside main layout
-        layout.addWidget(self.HKLPaths_text)
-        layout.addWidget(self.hkladdfileswidget)
-        layout.addWidget(self.run_ccCal)
+        ccCalLayout.addWidget(self.hkladdfileswidget)
+        ccCalLayout.addWidget(self.HKLPaths_text)
+        ccCalLayout.addWidget(self.run_ccCal, alignment=QtCore.Qt.AlignCenter)
 
 
     #get HKL file list for ccCal job
@@ -241,10 +259,10 @@ class tab_ccCal(QWidget):
         #update the ccClusterLog.txt status
         if os.path.isfile(ccClusterLog):
             self.ccCallog_status.setText(f"ccClusterLog.txt found: {ccClusterLog}")
-            self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
+            self.ccCallog_status.setStyleSheet("color: green; font-weight: bold; font-size: 14px")
         else:
             self.ccCallog_status.setText(f"ccClusterLog.txt not found in {self.realTimeUpdate.shareWorkDir}. Please generate one or select a different path")
-            self.ccCallog_status.setStyleSheet("color: red; font-weight: bold")
+            self.ccCallog_status.setStyleSheet("color: red; font-weight: bold; font-size: 14px")
 
 
     #search HKL files in the selected folder with the given suffix
@@ -304,9 +322,15 @@ class tab_ccCluster(QWidget):
         #set up plot area
         self.plotDendroAndStatistic_area()
 
+        #separation line:
+        Septline = QtWidgets.QFrame()
+        Septline.setFrameShape(QtWidgets.QFrame.HLine)
+        Septline.setStyleSheet("background-color: #888888; max-height: 3px; border: none; margin: 5px 0;")
+
         #Add widget to the layout
         self.ccCluster_layout.addWidget(self.ccClusterSetup_widget, 1)
-        self.ccCluster_layout.addWidget(self.plotDendroAndStatisticWidget, 4)
+        self.ccCluster_layout.addWidget(Septline)
+        self.ccCluster_layout.addWidget(self.plotDendroAndStatisticWidget, 9)
 
         #setup tabs if result exists
         self.UpdateResultAndSyncTabs()
@@ -342,7 +366,8 @@ class tab_ccCluster(QWidget):
 
         #define which group to merge based on the pre-view Dendrogram
         self.mergeGroup = QtWidgets.QLineEdit()
-        self.mergeGroup.setPlaceholderText("Not working yet, please it like this")
+        self.mergeGroup.setReadOnly(True)
+        self.mergeGroup.setPlaceholderText("Not working yet, please leave it like this")
 
         #select reference HKL file for XSCALE merging
         self.reference_HKL = QtWidgets.QLineEdit()
@@ -355,14 +380,17 @@ class tab_ccCluster(QWidget):
         self.anomBox.setChecked(False)
 
         #status bar to show information and button to run ccCluster job
+        self.ccClusterStatusBarTitle = QtWidgets.QLabel("Monitor ccCluster job status and button to run the job")
+        self.ccClusterStatusBarTitle.setStyleSheet("color: black; font-weight: bold; font-size: 12px;")
         self.ccClusterStatusBar = QtWidgets.QLineEdit()
         self.ccClusterStatusBar.setReadOnly(True)
         self.update_ccClusterStatusBar("ready to work")
         self.RunccCluster = QtWidgets.QPushButton("Run ccCluster")
+        self.RunccCluster.setFixedSize(200, 50)
         self.RunccCluster.clicked.connect(self.submit_ccCluster)
 
         #create main layout
-        layout = QtWidgets.QVBoxLayout(self.ccClusterSetup_widget)
+        ccClusterSetupLayout = QtWidgets.QVBoxLayout(self.ccClusterSetup_widget)
 
         #put ccClusterLogPath and button together
         ccClusterLogLayout = QtWidgets.QHBoxLayout()
@@ -384,15 +412,21 @@ class tab_ccCluster(QWidget):
         referenceHKLLayout.addWidget(self.select_reference_HKL, 1)
 
         #put status bar and merge button together
-        StatusBarLayout = QtWidgets.QHBoxLayout()
-        StatusBarLayout.addWidget(self.ccClusterStatusBar, 4)
-        StatusBarLayout.addWidget(self.RunccCluster, 1)
+        StatusBarLayout = QtWidgets.QVBoxLayout()
+        StatusBarLayout.addWidget(self.ccClusterStatusBarTitle, alignment=QtCore.Qt.AlignCenter)
+        StatusBarLayout.addWidget(self.ccClusterStatusBar)
+        StatusBarLayout.addWidget(self.RunccCluster, alignment=QtCore.Qt.AlignCenter)
+
+        #setup title
+        self.ccClusterSetupTitle = QtWidgets.QLabel("Set and run ccCluster jobs")
+        self.ccClusterSetupTitle.setStyleSheet("color: black; font-weight: bold; font-size: 16px;")
 
         #pack everything in the layout
-        layout.addLayout(ccClusterLogLayout)
-        layout.addLayout(AutoThresholsLayout)
-        layout.addLayout(referenceHKLLayout)
-        layout.addLayout(StatusBarLayout)
+        ccClusterSetupLayout.addWidget(self.ccClusterSetupTitle, alignment=QtCore.Qt.AlignCenter)
+        ccClusterSetupLayout.addLayout(ccClusterLogLayout)
+        ccClusterSetupLayout.addLayout(AutoThresholsLayout)
+        ccClusterSetupLayout.addLayout(referenceHKLLayout)
+        ccClusterSetupLayout.addLayout(StatusBarLayout)
 
 
     #select reference HKL file for XSCALE merging
@@ -413,13 +447,15 @@ class tab_ccCluster(QWidget):
 
         #add title to the top of widget
         self.titleWidget = QtWidgets.QLabel("Show result Dendrogram and statistics for each merged result")
+        #set up font
+        self.titleWidget.setStyleSheet("color: black; font-weight: bold; font-size: 16px;")
 
         #Create tabs for Dendrogram and statistics
         self.DendroAndStatsPlot()
 
         #pack widgets into the layout
-        self.plotDendroAndStatisticLayout.addWidget(self.titleWidget, 1)
-        self.plotDendroAndStatisticLayout.addWidget(self.ResultDendroAndStatsTab, 9)
+        self.plotDendroAndStatisticLayout.addWidget(self.titleWidget, 1, alignment=QtCore.Qt.AlignCenter)
+        self.plotDendroAndStatisticLayout.addWidget(self.ResultDendroAndStatsTab, 19)
 
 
     #Add ccCluster log path is needed
@@ -458,7 +494,7 @@ class tab_ccCluster(QWidget):
             Threshold = CC.thrEstimation()
             self.ShowThreshold.setText(str(Threshold))
             GroupNum, largestGroup, totalHKL = CC.checkMultiplicity(Threshold)
-            self.update_ccClusterStatusBar(f"Auto Threshold is {Threshold}, the largest cluster number is {GroupNum} with {largestGroup}/{totalHKL} files")
+            self.getLargestGroup()
 
 
     #Show largest cluster
@@ -478,7 +514,7 @@ class tab_ccCluster(QWidget):
                                                     f"the largest cluster number is {GroupNum} "
                                                     f"with {largestGroup}/{totalHKL} files"
                                                     )
-                    self.ShowLargestGroup.setText(f"Largest Group: {GroupNum} HKLs: {largestGroup}/{totalHKL}")
+                    self.ShowLargestGroup.setText(f"Largest Group: {GroupNum}; HKLs: {largestGroup}/{totalHKL}")
                 except ValueError:
                     self.update_ccClusterStatusBar("Threshold must be a valid number (e.g., 0.5)")
             else:
@@ -724,30 +760,50 @@ class tab_plotStats(QtWidgets.QWidget):
         #set up plot area
         self.CompareResults_area()
 
+        #separation line:
+        Septline = QtWidgets.QFrame()
+        Septline.setFrameShape(QtWidgets.QFrame.HLine)
+        Septline.setStyleSheet("background-color: #888888; max-height: 3px; border: none; margin: 5px 0;")
+
         #Add widget to the layout
         self.plotStats_layout.addWidget(self.ResultSelectionWidget, 1)
-        self.plotStats_layout.addWidget(self.CompareResultsWidget, 3)
+        self.plotStats_layout.addWidget(Septline)
+        self.plotStats_layout.addWidget(self.CompareResultsWidget, 4)
 
 
     def ResultSelection_area(self):      
-        self.ResultSelectionWidget = QtWidgets.QListWidget()
-        self.ResultSelectionWidget.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
-        self.ResultSelectionWidget.setMinimumHeight(150)
-        self.ResultSelectionWidget.setMaximumHeight(300)
+        self.ResultSelectionWidget = QtWidgets.QWidget()
+        self.ResultSelectionLayout = QtWidgets.QVBoxLayout(self.ResultSelectionWidget)
+
+        #set up selection box
+        self.ResultSelectionBox = QtWidgets.QListWidget()
+        self.ResultSelectionBox.setSelectionMode(QtWidgets.QAbstractItemView.MultiSelection)
+        self.ResultSelectionBox.setMinimumHeight(150)
+        self.ResultSelectionBox.setMaximumHeight(300)
 
         #set up scroll bar for the list widget
-        self.ResultSelectionWidget.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
-        self.ResultSelectionWidget.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.ResultSelectionBox.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
+        self.ResultSelectionBox.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
 
         #connect the selection change signal to the plot function
-        self.ResultSelectionWidget.itemSelectionChanged.connect(self.ReadAndPlotSelectedResult)
+        self.ResultSelectionBox.itemSelectionChanged.connect(self.ReadAndPlotSelectedResult)
+
+        #setup title
+        self.Resultselecttitle = QtWidgets.QLabel("Please select result in the box to compare them")
+        self.Resultselecttitle.setStyleSheet("color: black; font-weight: bold; font-size: 16px;")
+
+        #pack layout
+        self.ResultSelectionLayout.addWidget(self.Resultselecttitle, 1, alignment=QtCore.Qt.AlignCenter)
+        self.ResultSelectionLayout.addWidget(self.ResultSelectionBox, 19)
+
 
 
     def CompareResults_area(self):
         #create a widget to hold the plot area
         self.CompareResultsWidget = QtWidgets.QWidget()
         self.CompareResultsLayout = QtWidgets.QVBoxLayout(self.CompareResultsWidget)
-        self.ComparetitleWidget = QtWidgets.QLabel("Show result Dendrogram and statistics for each merged result")
+        self.ComparetitleWidget = QtWidgets.QLabel("Compare statistics for selected merged result")
+        self.ComparetitleWidget.setStyleSheet("color: black; font-weight: bold; font-size: 16px;")
 
         #create a widget to hold the plot area for XSCALE statistics comparison
         self.XSCALECompareWidget = QtWidgets.QTabWidget()
@@ -757,7 +813,7 @@ class tab_plotStats(QtWidgets.QWidget):
         XSCALECompareplaceholder.setAlignment(QtCore.Qt.AlignCenter)
         self.XSCALECompareWidget.addTab(XSCALECompareplaceholder, "No Selection")
 
-        self.CompareResultsLayout.addWidget(self.ComparetitleWidget, 1)
+        self.CompareResultsLayout.addWidget(self.ComparetitleWidget, 1, alignment=QtCore.Qt.AlignCenter)
         self.CompareResultsLayout.addWidget(self.XSCALECompareWidget, 19)
 
 
@@ -767,31 +823,31 @@ class tab_plotStats(QtWidgets.QWidget):
     def syncResultList(self):
         print(f"Syncing result list with MergeResult: {self.realTimeUpdate.MergeResult}")
         
-        if not hasattr(self, 'ResultSelectionWidget') or self.ResultSelectionWidget is None:
-            print(f"{colors.RED}ResultSelectionWidget does not exist{colors.ENDC}")
+        if not hasattr(self, 'ResultSelectionBox') or self.ResultSelectionBox is None:
+            print(f"{colors.RED}ResultSelectionBox does not exist{colors.ENDC}")
             return
         
         #Save current selection
         current_selection = []
-        for selecteditem in self.ResultSelectionWidget.selectedItems():
+        for selecteditem in self.ResultSelectionBox.selectedItems():
             current_selection.append(selecteditem.text())
         print(f"Current selection preserved: {current_selection}")
         
         # Clear and repopulate
-        self.ResultSelectionWidget.clear()
+        self.ResultSelectionBox.clear()
         for resultName in self.realTimeUpdate.MergeResult:
-            self.ResultSelectionWidget.addItem(resultName)
+            self.ResultSelectionBox.addItem(resultName)
         
         #Restore selection
-        for i in range(self.ResultSelectionWidget.count()):
-            item = self.ResultSelectionWidget.item(i)
+        for i in range(self.ResultSelectionBox.count()):
+            item = self.ResultSelectionBox.item(i)
             if item.text() in current_selection:
                 item.setSelected(True)
                 print(f"Restored selection: {item.text()}")
         
         # Update status
-        count = self.ResultSelectionWidget.count()
-        selected_count = len(self.ResultSelectionWidget.selectedItems())
+        count = self.ResultSelectionBox.count()
+        selected_count = len(self.ResultSelectionBox.selectedItems())
         print(f"Result list updated: {count} folders, {selected_count} selected")
 
 
@@ -799,7 +855,7 @@ class tab_plotStats(QtWidgets.QWidget):
     def UpdateResultList(self):
         self.selectedList = []
     
-        for item in self.ResultSelectionWidget.selectedItems():
+        for item in self.ResultSelectionBox.selectedItems():
             self.selectedList.append(item.text())
 
         print(f"Updated selectedList: {self.selectedList}")

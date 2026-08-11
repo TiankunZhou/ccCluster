@@ -64,6 +64,7 @@ class SinglePlotTab(QtWidgets.QWidget):
         self.Title=QtWidgets.QLabel(self)
         ResultName = Path(self.ProcessedDir).name.split('_')
         self.Title.setText(f"Threshold: {ResultName[2]} and Group number: {ResultName[3]}")
+        self.Title.setStyleSheet("color: black; font-weight: bold; font-size: 14px;")
 
         #set up the plot
         self.statsPlot = Figure()
@@ -101,7 +102,7 @@ class SinglePlotTab(QtWidgets.QWidget):
         self.barLayout.addWidget(self.SanoVsR)
         self.barLayout.addWidget(self.IsigmaVsR)
 
-        self.tabLayout.addWidget(self.Title, 1)
+        self.tabLayout.addWidget(self.Title, 1, alignment=QtCore.Qt.AlignCenter)
         self.tabLayout.addWidget(self.buttonBar, 1)
         self.tabLayout.addWidget(self.statsBar, 1)
         self.tabLayout.addWidget(self.statsCanvas, 17)
@@ -129,6 +130,7 @@ class MultiPlotTab(QtWidgets.QWidget):
         self.tabLayout= QtWidgets.QVBoxLayout(self)
         self.Title=QtWidgets.QLabel(self)
         self.Title.setText(f"Multi statistics for {len(self.ProcessedDirs)} processed directories")
+        self.Title.setStyleSheet("color: black; font-weight: bold; font-size: 14px;")
 
         #set up the plot
         self.MultiStatusPlots = Figure()
@@ -166,7 +168,7 @@ class MultiPlotTab(QtWidgets.QWidget):
         self.barLayout.addWidget(self.SanoVsR)
         self.barLayout.addWidget(self.IsigmaVsR)
 
-        self.tabLayout.addWidget(self.Title, 1)
+        self.tabLayout.addWidget(self.Title, 1, alignment=QtCore.Qt.AlignCenter)
         self.tabLayout.addWidget(self.buttonBar, 1)
         self.tabLayout.addWidget(self.MultiplestatsBar, 1)
         self.tabLayout.addWidget(self.MultiStatsCanvas, 17)
@@ -229,6 +231,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.tabLayout = QtWidgets.QVBoxLayout(self)
         self.Title=QtWidgets.QLabel(self)
         self.Title.setText(f"Dendrogram with threshold: {self.threshold_widget.text().strip() if self.threshold_widget else ''}")
+        self.Title.setStyleSheet("color: black; font-weight: bold; font-size: 14px;")
     
         #set up the plot
         self.dendroPlot = Figure()
@@ -238,11 +241,12 @@ class PrePlotDendrogram(QtWidgets.QWidget):
 
         #plot button
         self.plotButton = QtWidgets.QPushButton("Plot Dendrogram")
+        self.plotButton.setFixedSize(200, 30)
         self.plotButton.clicked.connect(self.on_plot_clicked)
 
         #add widgets to layout
-        self.tabLayout.addWidget(self.Title, 1)
-        self.tabLayout.addWidget(self.plotButton, 1)
+        self.tabLayout.addWidget(self.Title, 1, alignment=QtCore.Qt.AlignCenter)
+        self.tabLayout.addWidget(self.plotButton, 1, alignment=QtCore.Qt.AlignCenter)
         self.tabLayout.addWidget(self.dendrostatsBar, 1)
         self.tabLayout.addWidget(self.dendroCanvas, 17)
 
