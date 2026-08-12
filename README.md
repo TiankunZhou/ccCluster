@@ -1,9 +1,10 @@
-# ccCluster v. 1.0
-copyright 2015-2020
+# ccCluster v. 2.0
+copyright 2015-2030
 
 Welcome to ccCluster
 Developed at the ESRF by Gianluca Santoni.
-gianluca.santoni@esrf.fr
+Currently maintained by Tiankun Zhou
+tiankun.zhou@esrf.fr
 
 This program is used to run hierarchycal cluster analysis on protein diffraction data.
 When using, please cite:

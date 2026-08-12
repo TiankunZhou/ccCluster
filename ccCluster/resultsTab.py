@@ -19,6 +19,9 @@ from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as Navigatio
 from pathlib import Path
 from scipy.cluster import hierarchy
 from .clustering import Clustering
+import collections
+import operator
+import stat
 
 # implement the default mpl key bindings
 
@@ -290,7 +293,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
             return None
 
         #set up CC
-        _, Tree, _, _ = self.setupCC_method(ccClusterfile)
+        _, Tree, etiquets, etiquetsWithNum, _ = self.setupCC_method(ccClusterfile)
 
         #check whether the dendrogram tree is valid
         if Tree is None:
@@ -301,15 +304,47 @@ class PrePlotDendrogram(QtWidgets.QWidget):
 
         X = hierarchy.dendrogram(Tree, color_threshold=threshold, ax=self.Ax)
 
-        #Show figure legend about what color is what cluster
-        legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
-                            for i, c in enumerate(dict.fromkeys(X['color_list'])) \
-                            if c not in ['C0', 'k', 'grey']]
-        self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
-                       borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
+        #try to match the color to cluster number using count
+        #As they contains same amount od datasets
+        #get the FlatC with the same threshold
+        FlatC = hierarchy.fcluster(Tree, threshold, criterion='distance')
+        cluster_counts = collections.Counter(FlatC)
+        color_counts = collections.Counter(X['leaves_color_list'])
+
+        #Remove unwanted color
+        for remove_color in ['C0', 'k', 'grey']:
+            if remove_color in color_counts:
+                del color_counts[remove_color]
+
+        #Remove cluster with only 1 dataset
+        filtered_clusters = {cluster: count for cluster, count in cluster_counts.items() if count > 1}
+
+        #Sort by count
+        sorted_clusters = sorted(filtered_clusters.items(), key=lambda x: x[1])
+        sorted_colors = sorted(color_counts.items(), key=lambda x: x[1])
+        print(f"sorted cluster: {sorted_clusters}")
+        print(f"sorted color: {sorted_colors}")
+
+        #Match clusters to colors by count
+        cluster_to_color = {}
+        for (cluster, cluster_count), (color, color_count) in zip(sorted_clusters, sorted_colors):
+            if cluster_count == color_count:
+                cluster_to_color[cluster] = color
+            else:
+                print(f"Warning: Count mismatch! Cluster {cluster} has {cluster_count}, Color {color} has {color_count}")
+
+        #Create legend using matched clusters
+        legend_handles = []
+        for cluster in sorted(cluster_to_color.keys()):
+            color = cluster_to_color[cluster]
+            legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster}"))
+
+        #Add legend
+        self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
+                    borderaxespad=0, fontsize="small", title="Clusters",
+                    title_fontsize="medium")
 
         self.dendroPlot.tight_layout()
         self.Title.setText(f"Dendrogram with threshold: {threshold}")
 
-        #plot the figure
         self.dendroCanvas.draw()

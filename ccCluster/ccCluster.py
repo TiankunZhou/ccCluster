@@ -20,6 +20,7 @@ from .clustering import Clustering
 # Insert parse  to change the file path from command line
 import argparse
 import textwrap
+import numpy as np
 #Startup message
 
 print(r"""ccCluster - HCA for protein crystallography
@@ -84,12 +85,22 @@ def process_args():
     help="Give an optional reference HKL file for XSCALE merging, recommend to give absolute path"
     )
 
+    input_args.add_argument("-clu", "--clusters",
+    nargs='*',
+    type=int,
+    help="pass Selected cluster number as a list: e.g. -clu 1 5 3 2"
+    )
+
     #save args
     args = input_args.parse_args()
 
     #set working folder
     if args.output_dir == None:
         args.output_dir = os.getcwd()
+
+    #setup selected cluster:
+    if args.clusters is None or len(args.clusters) == 0:
+        args.clusters == None
 
     #check whether processing type is there
     if not args.process and not args.count and not args.estimation:
@@ -141,7 +152,7 @@ def main():
     #set up the job
     CC = Clustering(correlationFile, workdir)
     Tree = CC.avgTree()
-    etiquets=CC.createLabels()
+    etiquets, _ = CC.createLabels()
 
     #check threshold
     if args.threshold == None:
@@ -156,18 +167,18 @@ def main():
         if fileType=="HKL":
             #prepare and run XSCALE job
             if args.reference_HKL == None:
-                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold)
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters)
             elif os.path.isfile(args.reference_HKL):
-                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, refHKL=args.reference_HKL)
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters, refHKL=args.reference_HKL)
             else:
-                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold)
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters)
             if xscale_checker == True:
                 CC.scaleAndMerge(anomlous, threshold, xscale_path)
                 #get jason from XSCALE
                 CC.flatClusterPrinter(threshold, etiquets, anomlous, xscale_path)
 
             #prepare and run Pointless
-            pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold)
+            pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=args.clusters)
             if pointless_checker == True:
                 CC.pointlessRun(anomlous, threshold, pointless_path)
                 #prepare and run aimless
@@ -176,7 +187,7 @@ def main():
         #CC.passOInfoToGA(threshold, etiquets, anomlous)
         elif fileType=="mtz":
             #prepare and run Pointless
-            pointless_checker, pointless_path = CC.preparePointless(anomlous,threshold)
+            pointless_checker, pointless_path = CC.preparePointless(anomlous,threshold, clusterList=args.clusters)
             if pointless_checker == True:
                 CC.pointlessRun(anomlous, threshold, pointless_path)
                 #prepare and run aimless
@@ -195,44 +206,5 @@ def main():
         print(f"Estimated threshold is {a}, you can input another value use -t if needed")
 
 
-"""
-    #Old:
-    args = process_args()
-
-    #Suggest to run ccCalc if no correlation file is provided
-    if args.DISTfile is None:
-        print('no inputs specified, please run ccCalc before')
-    else:
-        correlationFile=os.path.abspath(args.DISTfile)
-
-    CC = Clustering(correlationFile)
-    Tree = CC.avgTree()
-    etiquets=CC.createLabels()
-    threshold = CC.thrEstimation()
-    fileType = CC.inputType()
-
-    if args.threshold:
-        threshold = args.threshold
-    else:
-        threshold= CC.thrEstimation()
-    if args.shell:
-        CC.checkMultiplicity(threshold)
-        if fileType=="HKL":
-            CC.prepareXSCALE('ano',threshold)
-            CC.scaleAndMerge('ano',threshold)
-            CC.flatClusterPrinter(threshold, etiquets, 'ano')
-            CC.passOInfoToGA(threshold, etiquets, 'ano')
-        elif fileType=="mtz":
-            CC.preparePointless('ano',threshold)
-            CC.pointlessRun('ano',threshold)
-            CC.flatClusterPrinter(threshold, etiquets, 'ano')
-        else:            print("Unknown input file format.")
-    elif args.count:
-        CC.checkMultiplicity(threshold)
-    elif args.est:
-        a = CC.thrEstimation()
-        print(a)
-"""
-
-if __name__== '__main__':
+if __name__== "__main__":
     main()

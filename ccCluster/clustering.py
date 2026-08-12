@@ -41,20 +41,6 @@ class Clustering():
         self.RunDir = os.path.abspath(run_dir) # maybe better to use absolut path for better output control
         self.ccTable, self.Dimension = self.parseCCFile()
         self.createLabels()
-        self.previousProcess()
-
-
-    def previousProcess(self):
-        """
-        Lists all the clusters which have already been processed from a log file.
-        Updates the global variable alreadyDone
-        """
-        self.alreadyDone= []
-        if os.path.isfile(os.getcwd()+'/.cc_cluster.log'):
-            with open(os.getcwd()+'/.cc_cluster.log') as log:
-                for line in log:
-                    L = line.split(',')
-                    self.alreadyDone.append([L[1], L[2].strip(), L[3].strip()])
 
 
     def parseCCFile(self):
@@ -65,9 +51,11 @@ class Clustering():
             dataArr = None
             data=[]
             Index = []
+            #ignore everything before "Correlation coefficients"
             for line in f:
                 if line.strip() == 'Correlation coefficients':
                     break
+
             for line in f:
                 dataline= line.rstrip().split()
                 data.append(dataline)
@@ -75,6 +63,7 @@ class Clustering():
                 Index.append(int(dataline[1])+1)
         Dimension=max(Index)
         dataArr = np.array(data,dtype=(float))
+
         return dataArr, Dimension
 
 
@@ -83,6 +72,7 @@ class Clustering():
         Gets the labels from the ccCalc output with the input file names
         """        
         self.labelList= []
+        self.labelWithDataNum = []
         with open(self.ccFile) as f:   
             for line in f:
                 if line.strip() == 'Labels':
@@ -92,7 +82,10 @@ class Clustering():
                     break
                 goodLine = line.split()
                 self.labelList.append("%s"%(goodLine[2].strip('\n')))
-        return self.labelList
+                self.labelWithDataNum.append(["%s"%(goodLine[1].strip('\n')), "%s"%(goodLine[2].strip('\n'))])
+
+        #return an extra lable list with data number to double check the cluster umber is correct
+        return self.labelList, self.labelWithDataNum
         
 
     def inputType(self):
@@ -145,6 +138,7 @@ class Clustering():
                 reducedArray.append(Matrix[x,y])
 
         Distances = np.array(reducedArray, dtype=(float))
+
         self.Tree =hierarchy.linkage(Distances, 'average')
 
         return self.Tree
@@ -231,7 +225,7 @@ class Clustering():
 
     #the list self.ToProcess is needed by the scaling routines
     #fix all this new mess!
-    #Tk: do we still need this function? may be use self.Best instead, as it will be a single element anyway
+    #Tk: do we still need this function?
     def whatToProcess(self):
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')        
         counter=collections.Counter(FlatC)
@@ -252,125 +246,166 @@ class Clustering():
     #input files
     #!!!! Will need to define the processes to run externally
     #renaming function! Edit the calls in ccCluster accordingly
-    def prepareXSCALE(self, anomFlag, thr, **kwargs):
+    def prepareXSCALE(self, anomFlag, thr, clusterList:list=None, **kwargs):
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance') #takes threshold here to clustter the files
-        print(f"FlactC is: {FlatC}")
+        print(f"FlatC is: {FlatC}")
         counter=collections.Counter(FlatC)
         print(f"counter is: {counter}")
-        self.Best = max(counter.items(), key=operator.itemgetter(1))[0] #returns onle one item (group number)
-        #Process = True # Maybe not needed?
-        #change checkboxes to standard variables
-        #Do we need this as Process will be True anyway it sets up self.Toprocess but it is same as best
-        #Keep this one for now but remove te rest, in case we need to revive it
-        """
-        if Process:
-            self.ToProcess = [Best]    
+
+        #set up selected cluster for merging
+        if clusterList == None:
+            self.SelectedCluster = [max(counter.items(), key=operator.itemgetter(1))[0]] #returns one item (group number) as list
         else:
-            self.ToProcess = set(Clusters)
-            for key in self.ToProcess:
-                if counter[key]==1:
-                    self.ToProcess = [x for x in self.ToProcess if x != key]
-        #for x in self.ToProcess:
-        """
+            self.SelectedCluster = clusterList
+
+        print(f"Checking selected cluster for XSCALE: {self.SelectedCluster}")
+        for num in self.SelectedCluster:
+            if num in FlatC:
+                print(f"cluster number {num} exist, will be merged")
+            else:
+                print(f"cluster number {num} does not exist, will be ignored, please check")
 
         #Setup running directory
-        processing_dir_XSCALE = self.RunDir+'/cc_Cluster_%.2f_%s_%s'%(float(thr), self.Best, anomFlag)
+        clusterStr = "n".join(str(x) for x in self.SelectedCluster)
+        processing_dir_XSCALE = f"{self.RunDir}/cc_Cluster_{round(float(thr), 2)}_{clusterStr}_{anomFlag}"
         XSCALE_file = f"{processing_dir_XSCALE}/XSCALE.INP"
-        if [thr, self.Best, anomFlag] not in self.alreadyDone:
-            #check working dir
-            if os.path.isdir(processing_dir_XSCALE):
-                print(f"Processing folder exists, checking content: {processing_dir_XSCALE}")
-            else:
-                os.mkdir(processing_dir_XSCALE)
+        
+        #check working dir
+        if os.path.isdir(processing_dir_XSCALE):
+            print(f"Processing folder exists, checking content: {processing_dir_XSCALE}")
+        else:
+            os.mkdir(processing_dir_XSCALE)
 
-            #check whether XSCALE.INP exists and skik the job if exists
-            if os.path.isfile(XSCALE_file):
-                print(f"XSCALE.INP exist: {XSCALE_file}\nWill pass the XSCALE process. Please reomve the file/folder if you want to re-run the job")
-                return False, None
-            else:
-                #Create XSCALE.INP setups
-                with open(XSCALE_file, 'a') as Xscale:
-                    Xscale.write(f"OUTPUT_FILE= xscale_scaled.hkl\n")
-                    Xscale.write(f"MERGE= TRUE\n")
-                    if anomFlag=='ano':
-                        Xscale.write(f"FRIEDEL\'S_LAW= FALSE\n")
-                    elif anomFlag=='no_ano':
-                        Xscale.write(f"FRIEDEL\'S_LAW= TRUE\n")
-                    if kwargs.get("refHKL"):
-                        reference_HKL = os.path.abspath(kwargs["refHKL"])
-                        print(f"Reference HKL file exists, added to XSCALE.INP: {reference_HKL}")
-                        Xscale.write(f"REFERENCE_DATA_SET= {reference_HKL}\n")
-                    else:
-                        print(f"No optional reference HKL for XSCALE, continue")
+        #check whether XSCALE.INP exists and skik the job if exists
+        if os.path.isfile(XSCALE_file):
+            print(f"XSCALE.INP exist: {XSCALE_file}\nWill pass the XSCALE process. Please reomve the file/folder if you want to re-run the job")
+            return False, None
+        else:
+            #Create XSCALE.INP setups
+            with open(XSCALE_file, 'a') as Xscale:
+                Xscale.write(f"OUTPUT_FILE= xscale_scaled.hkl\n")
+                Xscale.write(f"MERGE= TRUE\n")
+                if anomFlag=='ano':
+                    Xscale.write(f"FRIEDEL\'S_LAW= FALSE\n")
+                elif anomFlag=='no_ano':
+                    Xscale.write(f"FRIEDEL\'S_LAW= TRUE\n")
+                if kwargs.get("refHKL"):
+                    reference_HKL = os.path.abspath(kwargs["refHKL"])
+                    print(f"Reference HKL file exists, added to XSCALE.INP: {reference_HKL}")
+                    Xscale.write(f"REFERENCE_DATA_SET= {reference_HKL}\n")
+                else:
+                    print(f"No optional reference HKL for XSCALE, continue")
 
-                    #put HKL files for merging in the XSCALE.INP It should be OK to line in the self.Toprocess loop
-                    # as there is only one item in [Best]
-                    for cluster, filename in zip(FlatC, self.labelList):
-                        if cluster == self.Best:
-                            Xscale.write(f"INPUT_FILE= {filename}\n")
-                            #Xscale.write(f"INCLUDE_RESOLUTION_RANGE= 20, 1.8\n")
-                            #Xscale.write(f"MINIMUM_I/SIGMA= 0\n")
+                #put HKL files for merging in the XSCALE.INP It should be OK to line in the self.Toprocess loop
+                # as there is only one item in [Best]
+                for cluster, filename in zip(FlatC, self.labelList):
+                    if cluster in self.SelectedCluster:
+                        Xscale.write(f"INPUT_FILE= {filename}\n")
+                        #Xscale.write(f"INCLUDE_RESOLUTION_RANGE= 20, 1.8\n")
+                        #Xscale.write(f"MINIMUM_I/SIGMA= 0\n")
 
-                return True, processing_dir_XSCALE
+            return True, processing_dir_XSCALE
 
 
-    def preparePointless(self, anomFlag, thr):
+    def preparePointless(self, anomFlag, thr, clusterList:list=None, **kwargs):
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')
         counter=collections.Counter(FlatC)
-        self.Best = max(counter.items(), key=operator.itemgetter(1))[0]
+
+        #set up selected cluster for merging
+        if clusterList == None:
+            self.SelectedCluster = [max(counter.items(), key=operator.itemgetter(1))[0]] #returns one item (group number) as list
+        else:
+            self.SelectedCluster = clusterList
+
+        print(f"Checking selected cluster for XSCALE: {self.SelectedCluster}")
+        for num in self.SelectedCluster:
+            if num in FlatC:
+                print(f"cluster number {num} exist, will be merged")
+            else:
+                print(f"cluster number {num} does not exist, will be ignored, please check")
 
         #Check whether folder/file exists, and prepare it if not
         #Setup running folder
-        processing_dir_Pointless = self.RunDir+'/cc_Cluster_%.2f_%s_%s'%(float(thr), self.Best, anomFlag)
+        clusterStr = "n".join(str(x) for x in self.SelectedCluster)
+        processing_dir_Pointless = f"{self.RunDir}/cc_Cluster_{round(float(thr), 2)}_{clusterStr}_{anomFlag}"
         Pointless_file = f"{processing_dir_Pointless}/launch_pointless.sh"
-        if [thr, self.Best, anomFlag] not in self.alreadyDone: #need to check what is this
-            if os.path.isdir(processing_dir_Pointless):
-                print(f"Processing folder exists, checking content: {processing_dir_Pointless}")
-            else:
-                os.mkdir(processing_dir_Pointless)
+        if os.path.isdir(processing_dir_Pointless):
+            print(f"Processing folder exists, checking content: {processing_dir_Pointless}")
+        else:
+            os.mkdir(processing_dir_Pointless)
 
-            #Check whether launch_pointless exists
-            if os.path.isfile(Pointless_file):
-                print(f"launch_pointless.sh exist: {Pointless_file}\nWill pass the Pointless process. Please reomve the file/folder if you want to re-run the job")
-                return False, None
-            else:
-                with open(Pointless_file, 'a') as Pointless:
-                    Pointless.write(f"pointless hklout pointless_clustered.mtz << EOF\n")
-                    Pointless.write(f"XMLOUT pointlessLog.xml\n")
+        #Check whether launch_pointless exists
+        if os.path.isfile(Pointless_file):
+            print(f"launch_pointless.sh exist: {Pointless_file}\nWill pass the Pointless process. Please reomve the file/folder if you want to re-run the job")
+            return False, None
+        else:
+            with open(Pointless_file, 'a') as Pointless:
+                Pointless.write(f"pointless hklout pointless_clustered.mtz << EOF\n")
+                Pointless.write(f"XMLOUT pointlessLog.xml\n")
 
-                    #put HKL files for merging in the XSCALE.INP It should be OK to line in the self.Toprocess loop
-                    # as there is only one item in [Best]
-                    for cluster, filename in zip(FlatC,self.labelList):
-                        #if cluster in self.ToProcess:
-                        if cluster == self.Best:
-                            Pointless.write(f"HKLIN {filename}\n")
-                            #Pointless.write(f"EOF\n")
+                #put HKL files for merging in the XSCALE.INP It should be OK to line in the self.Toprocess loop
+                for cluster, filename in zip(FlatC,self.labelList):
+                    #if cluster in self.ToProcess:
+                    if cluster in self.SelectedCluster:
+                        Pointless.write(f"HKLIN {filename}\n")
+                        #Pointless.write(f"EOF\n")
 
-                return True, processing_dir_Pointless
+            return True, processing_dir_Pointless
 
 
     #Run XSCALE in the pre-determined folders, not self.Rundir ().
     def scaleAndMerge(self, anomFlag, thr, run_dir:str):
-        print(f"Best cluster number: {self.Best}")
-        newProcesses=[] #what does it do? - maybe used in other functions?
+        print(f"Selected cluster number: {self.SelectedCluster}")
         abs_run_dir = os.path.abspath(run_dir)
         xscale_file = f"{abs_run_dir}/XSCALE.INP"
+
         if os.path.isdir(abs_run_dir):
             if os.path.isfile(xscale_file):
-                if [thr, self.Best, anomFlag] not in self.alreadyDone:
-                    #self.createDendrogram(thr)
-                    X = hierarchy.dendrogram(self.Tree, color_threshold=float(thr))
+                #self.createDendrogram(thr)
+                X = hierarchy.dendrogram(self.Tree, color_threshold=float(thr))
 
-                    #Show figure legend about what color is what cluster
-                    legend_handles = [mpatches.Patch(color=c, label=f"Cluster {i+1}") \
-                                      for i, c in enumerate(dict.fromkeys(X['color_list'])) \
-                                      if c not in ['C0', 'k', 'grey']]
-                    plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1), \
-                               borderaxespad=0, fontsize="small", title="Clusters", title_fontsize="medium")
+                #try to match the color to cluster number using count
+                #As they contains same amount od datasets
+                #get the FlatC with the same threshold
+                FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')
+                cluster_counts = collections.Counter(FlatC)
+                color_counts = collections.Counter(X['leaves_color_list'])
 
-                    plt.savefig(abs_run_dir+'/Dendrogram.png', bbox_inches="tight", dpi=300)
-                    subprocess.run('xscale_par',cwd=abs_run_dir)
-                    newProcesses.append([thr, self.Best, anomFlag])
+                #remove unwanted color
+                for remove_color in ['C0', 'k', 'grey']:
+                    if remove_color in color_counts:
+                        del color_counts[remove_color]
+
+                #remove cluster with only 1 dataset
+                filtered_clusters = {cluster: count for cluster, count in cluster_counts.items() if count > 1}
+
+                #Sort by count
+                sorted_clusters = sorted(filtered_clusters.items(), key=lambda x: x[1])
+                sorted_colors = sorted(color_counts.items(), key=lambda x: x[1])
+                print(f"sorted cluster: {sorted_clusters}")
+                print(f"sorted color: {sorted_colors}")
+
+                #Match clusters to colors by count
+                cluster_to_color = {}
+                for (cluster, cluster_count), (color, color_count) in zip(sorted_clusters, sorted_colors):
+                    if cluster_count == color_count:
+                        cluster_to_color[cluster] = color
+                    else:
+                        print(f"Warning: Count mismatch! Cluster {cluster} has {cluster_count}, Color {color} has {color_count}")
+
+                #Create legend using matched clusters
+                legend_handles = []
+                for cluster in sorted(cluster_to_color.keys()):
+                    color = cluster_to_color[cluster]
+                    legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster}"))
+
+                #Add legend
+                plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
+                            borderaxespad=0, fontsize="small", title="Clusters",
+                            title_fontsize="medium")
+
+                plt.savefig(abs_run_dir+'/Dendrogram.png', bbox_inches="tight", dpi=300)
+                subprocess.run('xscale_par',cwd=abs_run_dir)
             else:
                 print(f"ccCluster XSCALE.INP file does not exist, please check: {abs_run_dir}")
         else:
@@ -379,22 +414,20 @@ class Clustering():
 
     #run Pointless in each folder from the processing List
     def pointlessRun(self, anomFlag, thr, run_dir:str):
-        print(f"Best cluster number: {self.Best}")
-        newProcesses=[]
+        print(f"Selected cluster number: {self.SelectedCluster}")
         abs_run_dir=os.path.abspath(run_dir)
         pointless_file = f"{abs_run_dir}/launch_pointless.sh"
         Pointless_log = f"{abs_run_dir}/pointless.log"
         if os.path.isdir(abs_run_dir):
-            if [thr, self.Best, anomFlag] not in self.alreadyDone:
-                if os.path.isfile(pointless_file):
-                    with open(pointless_file, 'a') as Pointless:
-                        Pointless.write(f"COPY\nbg\nTOLERANCE 4\nEOF\n")
-                    print(f"Running Pointless, please be patient\n")
-                    with open(Pointless_log, "a") as Pointlesslog:
-                        Pointless_command = ["bash", f"{pointless_file}"]
-                        subprocess.run(Pointless_command, stdout=Pointlesslog, check=True, cwd=abs_run_dir)
-                else:
-                    print(f"Looks like no lunch_pointless.sh in: {abs_run_dir}\nPlease check")
+            if os.path.isfile(pointless_file):
+                with open(pointless_file, 'a') as Pointless:
+                    Pointless.write(f"COPY\nbg\nTOLERANCE 4\nEOF\n")
+                print(f"Running Pointless, please be patient\n")
+                with open(Pointless_log, "a") as Pointlesslog:
+                    Pointless_command = ["bash", f"{pointless_file}"]
+                    subprocess.run(Pointless_command, stdout=Pointlesslog, check=True, cwd=abs_run_dir)
+            else:
+                print(f"Looks like no lunch_pointless.sh in: {abs_run_dir}\nPlease check")
         else:
             print(f"ccCluster Pointless run dir is missing, please check: {abs_run_dir}")
 
@@ -450,54 +483,53 @@ class Clustering():
             if os.path.isfile(aimless_file):
                 print(f"aimless.inp already exists in rundir, stop re-run the job: {abs_run_dir}")
             else:
-                if [thr, self.Best, anomFlag] not in  self.alreadyDone:
-                    with open(aimless_file, "a") as f1:
-                        f1.write(textwrap.dedent(f"""\
-                                                #!/bin/bash
+                with open(aimless_file, "a") as f1:
+                    f1.write(textwrap.dedent(f"""\
+                                            #!/bin/bash
 
-                                                aimless HKLIN {infile} << EOF
-                                                HKLOUT {setname}_aimless.mtz
-                                                RESOLUTION LOW {resLow} HIGH {resHigh}
-                                                OUTPUT MERGED
-                                                anomalous {anomflag}
-                                                EOF
+                                            aimless HKLIN {infile} << EOF
+                                            HKLOUT {setname}_aimless.mtz
+                                            RESOLUTION LOW {resLow} HIGH {resHigh}
+                                            OUTPUT MERGED
+                                            anomalous {anomflag}
+                                            EOF
 
-                                                #truncate: generate Fs
-                                                truncate hklin {setname}_aimless.mtz hklout {setname}_tr.mtz <<EOF-trunc
-                                                truncate yes
-                                                EOF-trunc
+                                            #truncate: generate Fs
+                                            truncate hklin {setname}_aimless.mtz hklout {setname}_tr.mtz <<EOF-trunc
+                                            truncate yes
+                                            EOF-trunc
 
 
-                                                #unique: generate unique reflection set for rfree
-                                                unique HKLOUT {setname}_unq.mtz << EOF
-                                                CELL {cell}
-                                                SYMMETRY {SpaceGroup}
-                                                LABOUT F=FUNI SIGF=SIGFUNI
-                                                RESOLUTION {resHigh}
-                                                EOF
+                                            #unique: generate unique reflection set for rfree
+                                            unique HKLOUT {setname}_unq.mtz << EOF
+                                            CELL {cell}
+                                            SYMMETRY {SpaceGroup}
+                                            LABOUT F=FUNI SIGF=SIGFUNI
+                                            RESOLUTION {resHigh}
+                                            EOF
 
-                                                #freerflag: generate free reflections
-                                                freerflag HKLIN {setname}_unq.mtz HKLOUT {setname}_FreeR_unq.mtz <<EOF
-                                                FREERFRAC 0.05
-                                                END
-                                                EOF
+                                            #freerflag: generate free reflections
+                                            freerflag HKLIN {setname}_unq.mtz HKLOUT {setname}_FreeR_unq.mtz <<EOF
+                                            FREERFRAC 0.05
+                                            END
+                                            EOF
 
-                                                #cad: combine free reflections with data
-                                                cad HKLIN1 {setname}_FreeR_unq.mtz HKLIN2 {setname}_tr.mtz HKLOUT {setname}_cad.mtz<<EOF
-                                                LABI FILE 1 E1=FreeR_flag
-                                                LABI FILE 2 ALLIN
-                                                END
-                                                EOF
+                                            #cad: combine free reflections with data
+                                            cad HKLIN1 {setname}_FreeR_unq.mtz HKLIN2 {setname}_tr.mtz HKLOUT {setname}_cad.mtz<<EOF
+                                            LABI FILE 1 E1=FreeR_flag
+                                            LABI FILE 2 ALLIN
+                                            END
+                                            EOF
 
-                                                freerflag HKLIN {setname}_cad.mtz HKLOUT {setname}_scaled.mtz <<EOF
-                                                COMPLETE FREE=FreeR_flag
-                                                END
-                                                EOF
-                                            """))
-                    print(f"Running aimless, please be patient\n")
-                    with open(aimless_log, "a") as aimlesslog:
-                        aimless_command = ["bash", f"{aimless_file}"]
-                        subprocess.run(aimless_command, stdout=aimlesslog, check=True, cwd=abs_run_dir)
+                                            freerflag HKLIN {setname}_cad.mtz HKLOUT {setname}_scaled.mtz <<EOF
+                                            COMPLETE FREE=FreeR_flag
+                                            END
+                                            EOF
+                                        """))
+                print(f"Running aimless, please be patient\n")
+                with open(aimless_log, "a") as aimlesslog:
+                    aimless_command = ["bash", f"{aimless_file}"]
+                    subprocess.run(aimless_command, stdout=aimlesslog, check=True, cwd=abs_run_dir)
         else:
             print(f"Aimless run dir (pointless outputdir) does not exists, please check: {abs_run_dir}")
 
@@ -508,25 +540,14 @@ class Clustering():
         run_dir_shuffle = f"{self.RunDir}/xscale_shuffle"
         Log = open(run_dir+'/.cc_cluster.log', 'a') #not sure anything is written into it leave it like this for now
         counter=collections.Counter(FlatC)
-        self.Best = max(counter.items(), key=operator.itemgetter(1))[0]
+        self.Best = [max(counter.items(), key=operator.itemgetter(1))[0]]
         print(self.Best)
         Process = True
         xscaleInputFiles=[]
 
-        #change checkboxes to standard variables
-        """
-        if Process:
-            self.ToProcess = [Best]    
-        else:
-            self.ToProcess = set(Clusters)
-            for key in self.ToProcess:
-                if counter[key]==1:
-                    self.ToProcess = [x for x in self.ToProcess if x != key]
-        """
-
         #Prepare list of filenames to shuffle over
         for cluster, filename in zip(FlatC, self.labelList):
-            if cluster == self.Best:
+            if cluster == self.Best[0]:
                 xscaleInputFiles.append(filename)
         print(xscaleInputFiles)
 

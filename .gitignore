@@ -15,6 +15,7 @@ git-notifier.log
 
 docs/_build
 docs/sphinx/installation.stable_release.json
-
+*.egg-info/
+*.egg
 
 build/

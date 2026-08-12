@@ -365,9 +365,11 @@ class tab_ccCluster(QWidget):
         self.CheckLargestGroup.clicked.connect(self.getLargestGroup)
 
         #define which group to merge based on the pre-view Dendrogram
+        self.mergeGroupLabel = QtWidgets.QLabel("Selected cluster:")
+        self.mergeGroupLabel.setStyleSheet("color: black; font-weight: bold;;")
+
         self.mergeGroup = QtWidgets.QLineEdit()
-        self.mergeGroup.setReadOnly(True)
-        self.mergeGroup.setPlaceholderText("Not working yet, please leave it like this")
+        self.mergeGroup.setPlaceholderText("Put the cluster to merge with space or comma, e.g. 2 3, 5,8")
 
         #select reference HKL file for XSCALE merging
         self.reference_HKL = QtWidgets.QLineEdit()
@@ -404,7 +406,8 @@ class tab_ccCluster(QWidget):
         AutoThresholsLayout.addWidget(self.ShowLargestGroup, 2)
         AutoThresholsLayout.addWidget(self.CheckLargestGroup, 1)
         AutoThresholsLayout.addWidget(self.anomBox, 1)
-        AutoThresholsLayout.addWidget(self.mergeGroup, 2)
+        AutoThresholsLayout.addWidget(self.mergeGroupLabel, 1)
+        AutoThresholsLayout.addWidget(self.mergeGroup, 3)
 
         #put reference HKL and button together
         referenceHKLLayout = QtWidgets.QHBoxLayout()
@@ -487,7 +490,7 @@ class tab_ccCluster(QWidget):
     
     #auto define threshold
     def getAutoThreshold(self):
-        CC, _, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        CC, _, _, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         if CC is None:
             self.update_ccClusterStatusBar(status_text)
         else:
@@ -499,7 +502,7 @@ class tab_ccCluster(QWidget):
 
     #Show largest cluster
     def getLargestGroup(self):
-        CC, _, _, status_text= self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        CC, _, _, _, status_text= self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         if CC is None:
             self.update_ccClusterStatusBar(status_text)
         else:
@@ -523,8 +526,21 @@ class tab_ccCluster(QWidget):
 
     #submit ccCluster job
     def submit_ccCluster(self):
-        CC, Tree, etiquets, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        CC, Tree, etiquets, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         threshold = self.ShowThreshold.text()
+
+        #pass selected group as a str with space:
+        SelectClusterText = self.mergeGroup.text().replace(',', ' ').strip()
+
+        #check if empty, or try converting to integers
+        if not SelectClusterText:
+            SelectedCluster = None
+        else:
+            try:
+                SelectedCluster = [int(x) for x in SelectClusterText.split()]
+            except ValueError:
+                SelectedCluster = None
+
         if CC is None:
             self.update_ccClusterStatusBar(status_text)
         else:
@@ -539,11 +555,11 @@ class tab_ccCluster(QWidget):
             if fileType=="HKL":
                 #prepare and run XSCALE job
                 if not self.reference_HKL.text():
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold)
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster)
                 elif os.path.isfile(self.reference_HKL.text()):
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, refHKL=self.reference_HKL.text())
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster, refHKL=self.reference_HKL.text())
                 else:
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold)
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster)
                 if xscale_checker == True:
                     self.update_ccClusterStatusBar(f"Running XSCALE job in {xscale_path}")
                     CC.scaleAndMerge(anomlous, threshold, xscale_path)
@@ -551,7 +567,7 @@ class tab_ccCluster(QWidget):
                     CC.flatClusterPrinter(threshold, etiquets, anomlous, xscale_path)
 
                 #prepare and run Pointless
-                pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold)
+                pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=SelectedCluster)
                 if pointless_checker == True:
                     self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}")
                     CC.pointlessRun(anomlous, threshold, pointless_path)
@@ -566,7 +582,7 @@ class tab_ccCluster(QWidget):
             #CC.passOInfoToGA(threshold, etiquets, anomlous)
             elif fileType=="mtz":
                 #prepare and run Pointless
-                pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold)
+                pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=SelectedCluster)
                 if pointless_checker == True:
                     self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}")
                     CC.pointlessRun(anomlous, threshold, pointless_path)
@@ -950,9 +966,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         CC = Clustering(correlationFile, self.shareWorkDir)
         Tree = CC.avgTree() #needed, for set up self.Tree in clustering.py
-        etiquets = CC.createLabels()
+        etiquets, etiquetsWithNum = CC.createLabels()
         text = f"CC setup successful: {correlationFile}"
-        return CC, Tree, etiquets, text
+        return CC, Tree, etiquets, etiquetsWithNum, text
 
         #Update results folder list, will be used by the result compare tab
     def CheckAndShowResult(self):
