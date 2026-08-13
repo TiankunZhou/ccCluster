@@ -12,14 +12,17 @@ When using, please cite:
 Santoni, G., Zander, U., Mueller-Dieckmann, C., Leonard, G. & Popov, A. (2017). J. Appl. Cryst. 50,
 https://doi.org/10.1107/S1600576717015229.
 
-## Installation with conda
+## Installation with conda for your own version if you are not at ESRF
+You need to have XDS and ccp4 installed first
 First, you would need to create a virtual environment:
 ```
-conda create --name HCA -c conda-forge
+conda create --prefix /Path/To/Your/environment/HCA_env -c conda-forge python numpy scipy matplotlib pyqt pathos pip cctbx-base 
 ```
 After, activate the environment and build the program:
 ```
-conda activate HCA
+conda activate /Path/To/Your/environment/HCA_env
+
+cd ccCluster
 
 python setup.py build 
 

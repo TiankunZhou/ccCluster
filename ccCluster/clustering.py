@@ -13,6 +13,7 @@ __status__ = "Beta"
 from scipy.cluster import hierarchy
 import scipy
 import matplotlib as mpl
+from matplotlib.figure import Figure
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import os
@@ -26,8 +27,33 @@ import random
 import textwrap
 import re
 import matplotlib.patches as mpatches
+from pathlib import Path
 
-# from .report  import WorkflowStepReport
+
+#Read XSCALE.LP and extract information to plot the statistics
+def extractXSCALEStat(XSCALEFile):
+    plotList = []
+    plotText = ""
+    with open(XSCALEFile, 'r') as LogFile:
+        for line in LogFile:
+            if line.strip().startswith('LIMIT'):
+                break
+        for line in LogFile:
+            break
+        for line in LogFile:
+            if line.strip().startswith('total'):
+                break
+            plotList.append(line.split())
+
+        #align the columns, use the max length of each column to determine the width
+        if plotList:
+            col_widths = [max(len(row[col_idx]) for row in plotList) + 3 for col_idx in range(len(plotList[0]))]
+            for line in plotList:
+                aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(line))
+                plotText += f"{aligned_line}\n"
+    
+    return plotList, plotText
+
 
 class Clustering():
     """
@@ -241,6 +267,39 @@ class Clustering():
                     self.ToProcess = [x for x in self.ToProcess if x != key]
         return self.ToProcess
 
+    #save XSCALE.LP statistics plot in the gallery folder for data porte
+    def SaveXscalePlot(self, ProcessDir:str, res, value, title):
+        statsPlot = Figure()
+        Ax = statsPlot.add_subplot(111)
+        plotDataX= []
+        plotDataY= []
+        plotList, _ = extractXSCALEStat(f"{ProcessDir}/XSCALE.LP")
+
+        #check if plotList is empty, if so, print a warning and return
+        if not plotList:
+            print(f"Warning: No data found in {ProcessDir}/XSCALE.LP")
+            return 
+
+        #Setup resolution and prepare the figure
+        LowestRes = float(plotList[0][res]) + 0.25
+        HighestRes = float(plotList[-1][res]) - 0.25 if float(plotList[-1][res]) > 0.5 else 0
+
+        for line in plotList:
+            plotDataX.append(float(line[res])) 
+            plotDataY.append(float(line[value].strip('*').strip('%')))
+        Ax.plot(plotDataX, plotDataY, 'r-^')
+
+        Ax.set_xlim(LowestRes, HighestRes)
+        Ax.set_title(title)
+
+        #Check if gallery folder exists, if not create it, we need to save the dendrogram in the gallery folder for data porte
+        PlotFile  = Path(f"{ProcessDir}/gallery/{title}.png")
+        PlotFile.parent.mkdir(parents=True, exist_ok=True)
+
+        #Save the plot
+        statsPlot.savefig(PlotFile, dpi=300)
+        plt.close(statsPlot)
+
 
     #Run XSCALE to merge the biggest cluster
     #input files
@@ -397,15 +456,31 @@ class Clustering():
                 legend_handles = []
                 for cluster in sorted(cluster_to_color.keys()):
                     color = cluster_to_color[cluster]
-                    legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster}"))
+                    legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster} : {cluster_counts[cluster]} datasets"))
 
                 #Add legend
                 plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
                             borderaxespad=0, fontsize="small", title="Clusters",
                             title_fontsize="medium")
 
-                plt.savefig(abs_run_dir+'/Dendrogram.png', bbox_inches="tight", dpi=300)
+                #Check if gallery folder exists, if not create it, we need to save the dendrogram in the gallery folder for data porte
+                Dendrogramfile  = Path(f"{abs_run_dir}/gallery/Dendrogram.png")
+                Dendrogramfile.parent.mkdir(parents=True, exist_ok=True)
+
+                #save dendrogram with legend
+                plt.savefig(Dendrogramfile, bbox_inches="tight", dpi=300)
+                plt.close()
+
+                #run XSCALE in the pre-determined folders, not self.Rundir ().
+                print(f"Running XSCALE in {abs_run_dir}, please be patient\n")
                 subprocess.run('xscale_par',cwd=abs_run_dir)
+
+                #save the XSCALE.LP statistics plot in the gallery folder for data porte
+                self.SaveXscalePlot(abs_run_dir, 0, 4, "CC_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 10, "comp_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 5, "Robs_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 8, "<I/\u03C3I>_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 12, "Sig_Ano_vs_Res")
             else:
                 print(f"ccCluster XSCALE.INP file does not exist, please check: {abs_run_dir}")
         else:

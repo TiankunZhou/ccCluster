@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 from __future__ import print_function, absolute_import
 
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 2015-2019"
+__author__ = "Gianluca Santoni & Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
@@ -26,9 +26,9 @@ import collections
 import operator
 from time import sleep
 import os
-from .resultsTab import SinglePlotTab, MultiPlotTab, PrePlotDendrogram, extractXSCALEStat
+from .resultsTab import SinglePlotTab, MultiPlotTab, PrePlotDendrogram
 from .summary import resultsSummary
-from .clustering import Clustering
+from .clustering import Clustering, extractXSCALEStat
 from .ccCalc import ccList
 
 #Insert parse  to change the file path from command line
@@ -645,7 +645,7 @@ class tab_ccCluster(QWidget):
     #function to add result tab in the self.PlottingTabWidget for realtime update when new result is generated or deleted
     def CreateResultTabs(self, result_name:str):
         result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_name)
-        dendrogram_path = os.path.join(result_folder, "Dendrogram.png")
+        dendrogram_path = os.path.join(f"{result_folder}/gallery", "Dendrogram.png")
         xscale_path = os.path.join(result_folder, "XSCALE.LP")
 
         #check if the dendrogram.png and XSCALE.LP exist in the result folder
@@ -980,12 +980,12 @@ class MainWindow(QtWidgets.QMainWindow):
                     print(f"No XSCALE.LP found in {folder_path}, please check")
                     continue
 
-                if not (folder_path/"Dendrogram.png").is_file():
+                if not (folder_path/"gallery/Dendrogram.png").is_file():
                     print(f"No Dendrogram.png found in {folder_path}, please check")
                     print(f"No Dendrogram.png found in {folder_path}, please check")
                     continue
 
-                if (folder_path/"XSCALE.LP").is_file() and (folder_path/"Dendrogram.png").is_file():
+                if (folder_path/"XSCALE.LP").is_file() and (folder_path/"gallery/Dendrogram.png").is_file():
                     folder_name = folder_path.name
                     if folder_name not in self.MergeResult:
                         print(f"find result folder: {folder_path}")
@@ -1002,7 +1002,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 print(f"Result folder {abs_result_folder} does not exist, remove it from the list")
             elif not os.path.isfile(os.path.join(abs_result_folder, "XSCALE.LP")):
                 print(f"No XSCALE.LP found in {abs_result_folder}, remove it from the list")
-            elif not os.path.isfile(os.path.join(abs_result_folder, "Dendrogram.png")):
+            elif not os.path.isfile(os.path.join(f"{abs_result_folder}/gallery", "Dendrogram.png")):
                 print(f"No Dendrogram.png found in {abs_result_folder}, remove it from the list")
             else:
                 Exist_results.append(result_folder)

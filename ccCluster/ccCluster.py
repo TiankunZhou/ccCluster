@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 from __future__ import print_function, absolute_import
 
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 2015-2019"
+__author__ = "Gianluca Santoni & Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
@@ -128,7 +128,7 @@ def main():
         correlationFile = os.path.abspath(args.dist_file)
         print(f"abs_path_list: {correlationFile}")
     else:
-        print(f"distance file does not exist, please check: args.dist_file")
+        print(f"distance file does not exist, please check: {args.dist_file}")
 
     #set up anomalous
     if args.anomalous_scattering == False:
@@ -167,11 +167,11 @@ def main():
         if fileType=="HKL":
             #prepare and run XSCALE job
             if args.reference_HKL == None:
-                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters)
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters)
             elif os.path.isfile(args.reference_HKL):
-                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters, refHKL=args.reference_HKL)
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters, refHKL=args.reference_HKL)
             else:
-                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters)
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters)
             if xscale_checker == True:
                 CC.scaleAndMerge(anomlous, threshold, xscale_path)
                 #get jason from XSCALE

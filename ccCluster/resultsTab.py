@@ -1,7 +1,7 @@
 from __future__ import print_function
 
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 2015-2019"
+__author__ = "Gianluca Santoni & Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
@@ -18,43 +18,16 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from pathlib import Path
 from scipy.cluster import hierarchy
-from .clustering import Clustering
+from .clustering import extractXSCALEStat
 import collections
 import operator
 import stat
 
 # implement the default mpl key bindings
-
-
 import sys
 import os
 import subprocess
 import matplotlib.patches as mpatches
-
-#Read XSCALE.LP and extract information to plot the statistics
-def extractXSCALEStat(XSCALEFile):
-    plotList = []
-    plotText = ""
-    with open(XSCALEFile, 'r') as LogFile:
-        for line in LogFile:
-            if line.strip().startswith('LIMIT'):
-                break
-        for line in LogFile:
-            break
-        for line in LogFile:
-            if line.strip().startswith('total'):
-                break
-            plotList.append(line.split())
-
-        #align the columns, use the max length of each column to determine the width
-        if plotList:
-            col_widths = [max(len(row[col_idx]) for row in plotList) + 3 for col_idx in range(len(plotList[0]))]
-            for line in plotList:
-                aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(line))
-                plotText += f"{aligned_line}\n"
-    
-    return plotList, plotText
-
 
 #create results tab to plot the SCALE.LP statistics
 class SinglePlotTab(QtWidgets.QWidget):
@@ -81,23 +54,23 @@ class SinglePlotTab(QtWidgets.QWidget):
 
         self.ccVsR= QtWidgets.QPushButton()
         self.ccVsR.setText("CC. vs Res")
-        self.ccVsR.clicked.connect(lambda:self.plotStats(0, 4,"CC. vs Res" ))
+        self.ccVsR.clicked.connect(lambda:self.plotStats(0, 4, "CC. vs Res"))
 
         self.compVsR= QtWidgets.QPushButton()
         self.compVsR.setText("comp vs Res")
-        self.compVsR.clicked.connect(lambda:self.plotStats(0, 10,"comp vs Res" ))
+        self.compVsR.clicked.connect(lambda:self.plotStats(0, 10, "comp vs Res"))
 
         self.RobsVsR= QtWidgets.QPushButton()
         self.RobsVsR.setText("Robs vs Res")
-        self.RobsVsR.clicked.connect(lambda:self.plotStats(0, 5, "Robs vs Res" ))
+        self.RobsVsR.clicked.connect(lambda:self.plotStats(0, 5, "Robs vs Res"))
 
         self.IsigmaVsR= QtWidgets.QPushButton()
         self.IsigmaVsR.setText("<I/\u03C3I> vs Res")
-        self.IsigmaVsR.clicked.connect(lambda:self.plotStats(0, 8,"I/sigmaI vs Res" ))
+        self.IsigmaVsR.clicked.connect(lambda:self.plotStats(0, 8, "<I/\u03C3I> vs Res"))
 
         self.SanoVsR= QtWidgets.QPushButton()
         self.SanoVsR.setText("Sig. Ano. vs Res")
-        self.SanoVsR.clicked.connect(lambda:self.plotStats(0, 12,"Sig. Ano. vs Res" ))
+        self.SanoVsR.clicked.connect(lambda:self.plotStats(0, 12, "Sig. Ano. vs Res"))
 
         self.barLayout.addWidget(self.ccVsR)
         self.barLayout.addWidget(self.compVsR)
@@ -115,11 +88,21 @@ class SinglePlotTab(QtWidgets.QWidget):
         plotDataX= []
         plotDataY= []
         plotList, _ = extractXSCALEStat(f"{self.ProcessedDir}/XSCALE.LP")
+
+        #Check if plotList is empty
+        if not plotList:
+            self.Ax.text(0.5, 0.5, "No data available to plot", 
+                         horizontalalignment='center', verticalalignment='center')
+            self.statsCanvas.draw()
+            return
+
+        LowestRes = float(plotList[0][res]) + 0.25
+        HighestRes = float(plotList[-1][res]) - 0.25 if float(plotList[-1][res]) > 0.25 else 0
         for line in plotList:
             plotDataX.append(float(line[res])) 
             plotDataY.append(float(line[value].strip('*').strip('%')))
         self.Ax.plot(plotDataX, plotDataY, 'r-^')
-        self.Ax.set_xlim(10,0)
+        self.Ax.set_xlim(LowestRes, HighestRes)
         self.Ax.set_title(title)
         self.statsCanvas.draw()
 
@@ -147,11 +130,11 @@ class MultiPlotTab(QtWidgets.QWidget):
 
         self.ccVsR= QtWidgets.QPushButton()
         self.ccVsR.setText("CC. vs Res")
-        self.ccVsR.clicked.connect(lambda:self.MultiPlotStats(0, 4,"CC. vs Res Multi"))
+        self.ccVsR.clicked.connect(lambda:self.MultiPlotStats(0, 4, "CC. vs Res Multi"))
 
         self.compVsR= QtWidgets.QPushButton()
         self.compVsR.setText("comp vs Res")
-        self.compVsR.clicked.connect(lambda:self.MultiPlotStats(0, 10,"comp vs Res Multi"))
+        self.compVsR.clicked.connect(lambda:self.MultiPlotStats(0, 10, "comp vs Res Multi"))
 
         self.RobsVsR= QtWidgets.QPushButton()
         self.RobsVsR.setText("Robs vs Res")
@@ -159,7 +142,7 @@ class MultiPlotTab(QtWidgets.QWidget):
 
         self.IsigmaVsR= QtWidgets.QPushButton()
         self.IsigmaVsR.setText("<I/\u03C3I> vs Res")
-        self.IsigmaVsR.clicked.connect(lambda:self.MultiPlotStats(0, 8,"I/sigmaI vs Res Multi"))
+        self.IsigmaVsR.clicked.connect(lambda:self.MultiPlotStats(0, 8, "<I/\u03C3I> vs Res Multi"))
 
         self.SanoVsR= QtWidgets.QPushButton()
         self.SanoVsR.setText("Sig. Ano. vs Res")
@@ -187,12 +170,23 @@ class MultiPlotTab(QtWidgets.QWidget):
         #setup plot for each processed directory
         for ProcessedDir in self.ProcessedDirs:
             plotList, _ = extractXSCALEStat(f"{ProcessedDir}/XSCALE.LP")
+
+            #Check if plotList is empty
+            if not plotList:
+                self.Ax.text(0.5, 0.5, f"No data available to plot for {Path(ProcessedDir).name}", 
+                             horizontalalignment='center', verticalalignment='center')
+                continue
+
             plotDataX= []
             plotDataY= []
+            LowestResList = []
+            HighestResList = []
             
             for line in plotList:
                 #check whether x and v values are valid numbers
                 try:
+                    LowestResList.append(float(line[res]) + 0.25)
+                    HighestResList.append(float(line[res]) - 0.25 if float(line[res]) > 0.5 else 0)
                     x_value = float(line[res]) if line[res] else 0
                     y_value = float(line[value].strip('*').strip('%')) if line[value] else 0
                     plotDataX.append(x_value)
@@ -206,7 +200,7 @@ class MultiPlotTab(QtWidgets.QWidget):
 
             legend_handles.append(line)
 
-        self.Ax.set_xlim(10,0)
+        self.Ax.set_xlim(max(LowestResList), min(HighestResList))
         self.Ax.set_title(title)
 
         #setup the legend
@@ -337,7 +331,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         legend_handles = []
         for cluster in sorted(cluster_to_color.keys()):
             color = cluster_to_color[cluster]
-            legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster}"))
+            legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster} : {cluster_counts[cluster]} datasets"))
 
         #Add legend
         self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),

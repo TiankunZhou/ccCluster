@@ -1,8 +1,8 @@
 #! /usr/bin/env libtbx.python
 from __future__ import print_function, absolute_import 
 
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 2015-2019"
+__author__ = "Gianluca Santoni & Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
 __version__ = "1.0"
