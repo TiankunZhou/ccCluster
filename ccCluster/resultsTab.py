@@ -92,7 +92,7 @@ class SinglePlotTab(QtWidgets.QWidget):
         self.RobsVsR.clicked.connect(lambda:self.plotStats(0, 5, "Robs vs Res" ))
 
         self.IsigmaVsR= QtWidgets.QPushButton()
-        self.IsigmaVsR.setText("I/sigmaI vs Res")
+        self.IsigmaVsR.setText("<I/\u03C3I> vs Res")
         self.IsigmaVsR.clicked.connect(lambda:self.plotStats(0, 8,"I/sigmaI vs Res" ))
 
         self.SanoVsR= QtWidgets.QPushButton()
@@ -158,7 +158,7 @@ class MultiPlotTab(QtWidgets.QWidget):
         self.RobsVsR.clicked.connect(lambda:self.MultiPlotStats(0, 5, "Robs vs Res Multi"))
 
         self.IsigmaVsR= QtWidgets.QPushButton()
-        self.IsigmaVsR.setText("I/sigmaI vs Res")
+        self.IsigmaVsR.setText("<I/\u03C3I> vs Res")
         self.IsigmaVsR.clicked.connect(lambda:self.MultiPlotStats(0, 8,"I/sigmaI vs Res Multi"))
 
         self.SanoVsR= QtWidgets.QPushButton()
