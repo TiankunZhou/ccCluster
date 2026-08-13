@@ -268,7 +268,7 @@ class Clustering():
         return self.ToProcess
 
     #save XSCALE.LP statistics plot in the gallery folder for data porte
-    def SaveXscalePlot(self, ProcessDir:str, res, value, title):
+    def SaveXscalePlot(self, ProcessDir:str, res, value, title:str, fileName:str):
         statsPlot = Figure()
         Ax = statsPlot.add_subplot(111)
         plotDataX= []
@@ -293,7 +293,7 @@ class Clustering():
         Ax.set_title(title)
 
         #Check if gallery folder exists, if not create it, we need to save the dendrogram in the gallery folder for data porte
-        PlotFile  = Path(f"{ProcessDir}/gallery/{title}.png")
+        PlotFile  = Path(f"{ProcessDir}/gallery/{fileName}.png")
         PlotFile.parent.mkdir(parents=True, exist_ok=True)
 
         #Save the plot
@@ -456,11 +456,11 @@ class Clustering():
                 legend_handles = []
                 for cluster in sorted(cluster_to_color.keys()):
                     color = cluster_to_color[cluster]
-                    legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster} : {cluster_counts[cluster]} datasets"))
+                    legend_handles.append(mpatches.Patch(color=color, label=f"$\\mathbf{{Cluster\\ {cluster}}}$ :\n{cluster_counts[cluster]} datasets"))
 
                 #Add legend
                 plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
-                            borderaxespad=0, fontsize="small", title="Clusters",
+                            borderaxespad=0, fontsize="small", handleheight=3, handlelength=2,
                             title_fontsize="medium")
 
                 #Check if gallery folder exists, if not create it, we need to save the dendrogram in the gallery folder for data porte
@@ -476,11 +476,11 @@ class Clustering():
                 subprocess.run('xscale_par',cwd=abs_run_dir)
 
                 #save the XSCALE.LP statistics plot in the gallery folder for data porte
-                self.SaveXscalePlot(abs_run_dir, 0, 4, "CC_vs_Res")
-                self.SaveXscalePlot(abs_run_dir, 0, 10, "comp_vs_Res")
-                self.SaveXscalePlot(abs_run_dir, 0, 5, "Robs_vs_Res")
-                self.SaveXscalePlot(abs_run_dir, 0, 8, "<I/\u03C3I>_vs_Res")
-                self.SaveXscalePlot(abs_run_dir, 0, 12, "Sig_Ano_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 4, "CC_vs_Res", "CC_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 10, "comp_vs_Res", "comp_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 5, "Robs_vs_Res", "Robs_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 8, "<I/\u03C3I>_vs_Res", "I_SigmaI_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 12, "Sig_Ano_vs_Res", "Sig_Ano_vs_Res")
             else:
                 print(f"ccCluster XSCALE.INP file does not exist, please check: {abs_run_dir}")
         else:

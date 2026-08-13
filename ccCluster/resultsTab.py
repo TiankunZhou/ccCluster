@@ -206,7 +206,7 @@ class MultiPlotTab(QtWidgets.QWidget):
         #setup the legend
         if legend_handles:
             self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),\
-                           borderaxespad=0, fontsize="small", title="Directories", title_fontsize="medium")
+                           borderaxespad=0, fontsize="small", title_fontsize="medium")
             self.MultiStatusPlots.tight_layout()
         else:
             self.MultiStatusPlots.tight_layout()
@@ -331,11 +331,11 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         legend_handles = []
         for cluster in sorted(cluster_to_color.keys()):
             color = cluster_to_color[cluster]
-            legend_handles.append(mpatches.Patch(color=color, label=f"Cluster {cluster} : {cluster_counts[cluster]} datasets"))
+            legend_handles.append(mpatches.Patch(color=color, label=f"$\\mathbf{{Cluster\\ {cluster}}}$ :\n{cluster_counts[cluster]} datasets"))
 
         #Add legend
         self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
-                    borderaxespad=0, fontsize="small", title="Clusters",
+                    borderaxespad=0, fontsize="small", handleheight=3, handlelength=2,
                     title_fontsize="medium")
 
         self.dendroPlot.tight_layout()
