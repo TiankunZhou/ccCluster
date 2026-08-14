@@ -141,7 +141,7 @@ def main():
     #set up the job
     CC = Clustering(correlationFile, workdir)
     Tree = CC.avgTree()
-    etiquets, _ = CC.createLabels()
+    etiquets = CC.createLabels()
 
     #check threshold
     if args.threshold == None:
@@ -163,7 +163,7 @@ def main():
         if xscale_checker == True:
             CC.scaleAndMerge(anomlous, threshold, xscale_path)
             #get jason from XSCALE
-            CC.flatClusterPrinter(threshold, etiquets, anomlous, xscale_path)
+            CC.flatClusterPrinter(threshold, etiquets, xscale_path)
 
         #prepare and run Pointless
         pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=args.clusters)
@@ -180,7 +180,7 @@ def main():
             CC.pointlessRun(anomlous, threshold, pointless_path)
             #prepare and run aimless
             CC.aimlessRun(anomlous, threshold, pointless_path)
-            CC.flatClusterPrinter(threshold, etiquets, anomlous, pointless_path)
+            CC.flatClusterPrinter(threshold, etiquets, pointless_path)
     else:
         print(f"Unknown input file format, please check the distance file: {correlationFile}")
     

@@ -18,7 +18,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from pathlib import Path
 from scipy.cluster import hierarchy
-from .clustering import extractXSCALEStat
+from .clustering import extractXSCALEStat, checkIndices, find_cluster_for_index
 import collections
 import operator
 import stat
@@ -28,6 +28,7 @@ import sys
 import os
 import subprocess
 import matplotlib.patches as mpatches
+import numpy as np
 
 #create results tab to plot the SCALE.LP statistics
 class SinglePlotTab(QtWidgets.QWidget):
@@ -287,7 +288,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
             return None
 
         #set up CC
-        _, Tree, etiquets, etiquetsWithNum, _ = self.setupCC_method(ccClusterfile)
+        _, Tree, etiquets, _ = self.setupCC_method(ccClusterfile)
 
         #check whether the dendrogram tree is valid
         if Tree is None:
@@ -302,6 +303,53 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         #As they contains same amount od datasets
         #get the FlatC with the same threshold
         FlatC = hierarchy.fcluster(Tree, threshold, criterion='distance')
+
+        #create a mapping from cluster number to indices in FlatC
+        cluster_to_indices = {}
+        for cluster in np.unique(FlatC):
+            cluster_to_indices[cluster] = np.where(FlatC == cluster)[0].tolist()
+        sorted_cluster_to_indices = dict(sorted(cluster_to_indices.items(), key=lambda item: len(item[1]), reverse=True))
+        TenLargestClusters = dict(list(sorted_cluster_to_indices.items())[:8])
+        #get keys
+        clusterKeysList = list(TenLargestClusters.keys())
+        colornum = 1
+        for key in clusterKeysList:
+            TenLargestClusters[(key, f"C{colornum}")] = TenLargestClusters.pop(key)
+            colornum += 1
+
+        print(f"TenLargestClusters: {TenLargestClusters}")
+
+        for cluster, indices in TenLargestClusters.items():
+            print(f"Cluster {cluster} has {len(indices)} datasets: {indices}")
+        print(f"Number of clusters: {len(TenLargestClusters)}")
+
+        #get leaves list from dendrogram
+        leavesList = X['leaves']
+        indiceColorList = []
+        NewColorList = []
+
+        #generate new color list based on the cluster_to_indices mapping
+        for i, leaf in enumerate(leavesList):
+            cluster_number = find_cluster_for_index(TenLargestClusters, leaf)
+            if cluster_number is not None:
+                #get the color for this cluster from the dendrogram
+                indiceColorList.append((i, leaf, cluster_number[0], cluster_number[1]))
+            else:
+                indiceColorList.append((i, leaf, None, 'C0'))
+
+        print(f"indiceColorList: {indiceColorList}")
+
+        for i, j in zip(leavesList, indiceColorList):
+            if i == j[1]:
+                NewColorList.append(j[3])
+            else:
+                print(f"Warning: Mismatch in leaves and indices. Leaf {i} does not match index {j[1]}.")
+
+        if len(NewColorList) != len(X['leaves_color_list']):
+            print(f"Warning: Mismatch in color list lengths. NewColorList has {len(NewColorList)} colors, but dendrogram has {len(X['leaves_color_list'])} colors.")
+        
+        print(f"NewColorList: {NewColorList}")
+
         cluster_counts = collections.Counter(FlatC)
         color_counts = collections.Counter(X['leaves_color_list'])
 
@@ -313,9 +361,9 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         #Remove cluster with only 1 dataset
         filtered_clusters = {cluster: count for cluster, count in cluster_counts.items() if count > 1}
 
-        #Sort by count
-        sorted_clusters = sorted(filtered_clusters.items(), key=lambda x: x[1])
-        sorted_colors = sorted(color_counts.items(), key=lambda x: x[1])
+        #Sort by count from largest to smallest, prepare to show maximum FIVE largest clusters in the legend
+        sorted_clusters = sorted(filtered_clusters.items(), key=lambda x: x[1], reverse=True)
+        sorted_colors = sorted(color_counts.items(), key=lambda x: x[1], reverse=True)
         print(f"sorted cluster: {sorted_clusters}")
         print(f"sorted color: {sorted_colors}")
 
@@ -339,6 +387,10 @@ class PrePlotDendrogram(QtWidgets.QWidget):
                     title_fontsize="medium")
 
         self.dendroPlot.tight_layout()
-        self.Title.setText(f"Dendrogram with threshold: {threshold}")
+        if len(sorted_clusters) >= 2:
+            self.Title.setText(f"Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets\
+                            \nThe second largest cluster is cluster {sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets")
+        else:
+            self.Title.setText(f"Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets")
 
         self.dendroCanvas.draw()

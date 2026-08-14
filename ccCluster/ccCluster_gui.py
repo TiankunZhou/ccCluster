@@ -28,7 +28,7 @@ from time import sleep
 import os
 from .resultsTab import SinglePlotTab, MultiPlotTab, PrePlotDendrogram
 from .summary import resultsSummary
-from .clustering import Clustering, extractXSCALEStat
+from .clustering import Clustering, extractXSCALEStat, checkIndices, colors
 from .ccCalc import ccList
 
 #Insert parse  to change the file path from command line
@@ -58,13 +58,6 @@ G. Santoni and A. Popov, 2015
 """)
 
 
-#Set color for printing
-class colors:
-    BOLD = '\033[1m'
-    GREEN = '\033[32m'
-    BLUE = '\033[34m'
-    RED = '\033[31m'
-    ENDC = '\033[m'
 
 
 
@@ -490,7 +483,7 @@ class tab_ccCluster(QWidget):
     
     #auto define threshold
     def getAutoThreshold(self):
-        CC, _, _, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        CC, _, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         if CC is None:
             self.update_ccClusterStatusBar(status_text)
         else:
@@ -502,7 +495,7 @@ class tab_ccCluster(QWidget):
 
     #Show largest cluster
     def getLargestGroup(self):
-        CC, _, _, _, status_text= self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        CC, _, _, status_text= self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         if CC is None:
             self.update_ccClusterStatusBar(status_text)
         else:
@@ -526,7 +519,7 @@ class tab_ccCluster(QWidget):
 
     #submit ccCluster job
     def submit_ccCluster(self):
-        CC, Tree, etiquets, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
+        CC, Tree, etiquets, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         threshold = self.ShowThreshold.text()
 
         #pass selected group as a str with space:
@@ -564,7 +557,7 @@ class tab_ccCluster(QWidget):
                     self.update_ccClusterStatusBar(f"Running XSCALE job in {xscale_path}")
                     CC.scaleAndMerge(anomlous, threshold, xscale_path)
                     #get json from XSCALE
-                    CC.flatClusterPrinter(threshold, etiquets, anomlous, xscale_path)
+                    CC.flatClusterPrinter(threshold, etiquets, xscale_path)
 
                 #prepare and run Pointless
                 pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=SelectedCluster)
@@ -589,7 +582,7 @@ class tab_ccCluster(QWidget):
                     #prepare and run aimless
                     self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient")
                     CC.aimlessRun(anomlous, threshold, pointless_path)
-                    CC.flatClusterPrinter(threshold, etiquets, anomlous, pointless_path)
+                    CC.flatClusterPrinter(threshold, etiquets, pointless_path)
 
                 self.ccClusterStatusBar.setText(f"No statistcs as the input file is mtz, check results in: {pointless_path}")
             else:
@@ -966,9 +959,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
         CC = Clustering(correlationFile, self.shareWorkDir)
         Tree = CC.avgTree() #needed, for set up self.Tree in clustering.py
-        etiquets, etiquetsWithNum = CC.createLabels()
+        etiquets = CC.createLabels()
         text = f"CC setup successful: {correlationFile}"
-        return CC, Tree, etiquets, etiquetsWithNum, text
+        return CC, Tree, etiquets, text
 
         #Update results folder list, will be used by the result compare tab
     def CheckAndShowResult(self):

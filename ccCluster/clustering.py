@@ -30,6 +30,24 @@ import matplotlib.patches as mpatches
 from pathlib import Path
 
 
+
+#Set color for printing
+class colors:
+    BOLD = '\033[1m'
+    GREEN = '\033[32m'
+    BLUE = '\033[34m'
+    RED = '\033[31m'
+    ENDC = '\033[m'
+
+
+# find which cluster an index belongs to
+def find_cluster_for_index(cluster_to_indices:dict, index:int):
+    """Find which cluster an index belongs to"""
+    for cluster, indices in cluster_to_indices.items():
+        if index in indices:
+            return cluster
+    return None
+
 #Read XSCALE.LP and extract information to plot the statistics
 def extractXSCALEStat(XSCALEFile):
     plotList = []
@@ -53,6 +71,22 @@ def extractXSCALEStat(XSCALEFile):
                 plotText += f"{aligned_line}\n"
     
     return plotList, plotText
+
+
+#function to check the indices if correct with the data number in the label list, to avoid any mismatch between the two
+#only checks the FlatC list with the labelList ([[dataNum, filename], ...]) to see if the dataNum is correct with the index in the FlatC list
+#make sure you pass the correct arguments to the function, otherwise it will not work as expected
+def checkIndices(FlatCList:list, labelList:list):
+    if len(FlatCList) != len(labelList):
+        print(f"Warning: The length of FlatCList ({len(FlatCList)}) does not match the length of labelList ({len(labelList)}). Please check the input arguments.")
+        return False
+
+    for i, (cluster, label) in enumerate(zip(FlatCList, labelList)):
+        dataNum = int(label[0])
+        if i != dataNum:
+            print(f"Warning: Mismatch at index {i}: FlatCList has cluster {cluster}, but labelList has data number {dataNum}.")
+            return False
+    return True
 
 
 class Clustering():
@@ -98,7 +132,6 @@ class Clustering():
         Gets the labels from the ccCalc output with the input file names
         """        
         self.labelList= []
-        self.labelWithDataNum = []
         with open(self.ccFile) as f:   
             for line in f:
                 if line.strip() == 'Labels':
@@ -107,18 +140,17 @@ class Clustering():
                 if line.strip() == 'Correlation coefficients':
                     break
                 goodLine = line.split()
-                self.labelList.append("%s"%(goodLine[2].strip('\n')))
-                self.labelWithDataNum.append(["%s"%(goodLine[1].strip('\n')), "%s"%(goodLine[2].strip('\n'))])
+                self.labelList.append(["%s"%(goodLine[1].strip('\n')), "%s"%(goodLine[2].strip('\n'))])
 
         #return an extra lable list with data number to double check the cluster umber is correct
-        return self.labelList, self.labelWithDataNum
+        return self.labelList
         
 
     def inputType(self):
         """
         return input file type. Either mtz or HLK
         """        
-        element = self.labelList[0]
+        element = self.labelList[0][1]
         extension = element.split('.')[-1]
         print(extension)
         return extension
@@ -170,18 +202,16 @@ class Clustering():
         return self.Tree
 
 
-    def flatClusterPrinter(self, thr, labelsList, anomFlag, run_dir:str):
+    def flatClusterPrinter(self, thr, labelsList, run_dir:str):
         """
         Prints the flat cluster at a chosen threshold to a .json file
         """        
         FlatC=hierarchy.fcluster(self.Tree, thr, criterion='distance')
-        counter=collections.Counter(FlatC)
         clusterToJson={}
         clusterToJson['HKL']=[]
         abs_run_dir = os.path.abspath(run_dir)
         print(f"run_dir: {abs_run_dir}")
         #check run dir
-        Best = max(counter.items(), key=operator.itemgetter(1))[0]
         if os.path.isdir(abs_run_dir):
             with open(f"{abs_run_dir}/flatCluster.json", 'w') as clusterFile:
                 for cluster, hkl in zip(FlatC, labelsList):
@@ -266,6 +296,7 @@ class Clustering():
                 if counter[key]==1:
                     self.ToProcess = [x for x in self.ToProcess if x != key]
         return self.ToProcess
+
 
     #save XSCALE.LP statistics plot in the gallery folder for data porte
     def SaveXscalePlot(self, ProcessDir:str, res, value, title:str, fileName:str):
@@ -359,7 +390,7 @@ class Clustering():
                 # as there is only one item in [Best]
                 for cluster, filename in zip(FlatC, self.labelList):
                     if cluster in self.SelectedCluster:
-                        Xscale.write(f"INPUT_FILE= {filename}\n")
+                        Xscale.write(f"INPUT_FILE= {filename[1]}\n")
                         #Xscale.write(f"INCLUDE_RESOLUTION_RANGE= 20, 1.8\n")
                         #Xscale.write(f"MINIMUM_I/SIGMA= 0\n")
 
@@ -406,7 +437,7 @@ class Clustering():
                 for cluster, filename in zip(FlatC,self.labelList):
                     #if cluster in self.ToProcess:
                     if cluster in self.SelectedCluster:
-                        Pointless.write(f"HKLIN {filename}\n")
+                        Pointless.write(f"HKLIN {filename[1]}\n")
                         #Pointless.write(f"EOF\n")
 
             return True, processing_dir_Pointless
@@ -613,7 +644,7 @@ class Clustering():
     def shuffleXscale(self, anomFlag, thr):
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')
         run_dir_shuffle = f"{self.RunDir}/xscale_shuffle"
-        Log = open(run_dir+'/.cc_cluster.log', 'a') #not sure anything is written into it leave it like this for now
+        Log = open(run_dir_shuffle+'/.cc_cluster.log', 'a') #not sure anything is written into it leave it like this for now
         counter=collections.Counter(FlatC)
         self.Best = [max(counter.items(), key=operator.itemgetter(1))[0]]
         print(self.Best)
@@ -623,7 +654,7 @@ class Clustering():
         #Prepare list of filenames to shuffle over
         for cluster, filename in zip(FlatC, self.labelList):
             if cluster == self.Best[0]:
-                xscaleInputFiles.append(filename)
+                xscaleInputFiles.append(filename[1])
         print(xscaleInputFiles)
 
         #run XSCALE with random ordered files 20 times
