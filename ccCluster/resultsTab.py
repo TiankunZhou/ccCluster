@@ -18,7 +18,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from pathlib import Path
 from scipy.cluster import hierarchy
-from .clustering import extractXSCALEStat, checkIndices, find_cluster_for_index
+from .clustering import extractXSCALEStat, checkIndices, find_cluster_for_index, colors
 import collections
 import operator
 import stat
@@ -225,11 +225,19 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.threshold_widget = Threshold
         self.setupCC_method = setupCC_method
 
-        #setup widget
+        #setup layout
         self.tabLayout = QtWidgets.QVBoxLayout(self)
-        self.Title=QtWidgets.QLabel(self)
-        self.Title.setText(f"Dendrogram with threshold: {self.threshold_widget.text().strip() if self.threshold_widget else ''}")
-        self.Title.setStyleSheet("color: black; font-weight: bold; font-size: 14px;")
+
+        #setup tabs widget
+        self.dendroClusterTabs = QtWidgets.QTabWidget()
+
+        #setup dendro tabs
+        self.dendrotab = QtWidgets.QWidget()
+        self.dendrotabLayout = QtWidgets.QVBoxLayout(self.dendrotab)
+
+        self.dendroTitle=QtWidgets.QLabel(self)
+        self.dendroTitle.setText(f"Dendrogram with threshold: {self.threshold_widget.text().strip() if self.threshold_widget else ''}")
+        self.dendroTitle.setStyleSheet("color: black; font-weight: bold; font-size: 12px;")
     
         #set up the plot
         self.dendroPlot = Figure()
@@ -238,15 +246,21 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.dendrostatsBar= NavigationToolbar(self.dendroCanvas, self)
 
         #plot button
-        self.plotButton = QtWidgets.QPushButton("Plot Dendrogram")
-        self.plotButton.setFixedSize(200, 30)
-        self.plotButton.clicked.connect(self.on_plot_clicked)
+        self.dendroplotButton = QtWidgets.QPushButton("Plot Dendrogram")
+        self.dendroplotButton.setFixedSize(200, 30)
+        self.dendroplotButton.clicked.connect(self.on_plot_clicked)
 
         #add widgets to layout
-        self.tabLayout.addWidget(self.Title, 1, alignment=QtCore.Qt.AlignCenter)
-        self.tabLayout.addWidget(self.plotButton, 1, alignment=QtCore.Qt.AlignCenter)
-        self.tabLayout.addWidget(self.dendrostatsBar, 1)
-        self.tabLayout.addWidget(self.dendroCanvas, 17)
+        self.dendrotabLayout.addWidget(self.dendroTitle, 1, alignment=QtCore.Qt.AlignCenter)
+        self.dendrotabLayout.addWidget(self.dendroplotButton, 1, alignment=QtCore.Qt.AlignCenter)
+        self.dendrotabLayout.addWidget(self.dendrostatsBar, 1)
+        self.dendrotabLayout.addWidget(self.dendroCanvas, 17)
+
+        #add tabs 
+        self.dendroClusterTabs.addTab(self.dendrotab, "prePlot Dendrogram")
+
+        #add widget
+        self.tabLayout.addWidget(self.dendroClusterTabs)
 
 
     #check whether the threshold is valid float and plot the dendrogram
@@ -300,7 +314,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         X = hierarchy.dendrogram(Tree, color_threshold=threshold, ax=self.Ax)
 
         #try to match the color to cluster number using count
-        #As they contains same amount od datasets
+        #As they contains same amount od datasets ONLY IF the number of cluster is smaller than 10
         #get the FlatC with the same threshold
         FlatC = hierarchy.fcluster(Tree, threshold, criterion='distance')
 
@@ -310,12 +324,6 @@ class PrePlotDendrogram(QtWidgets.QWidget):
             cluster_to_indices[cluster] = np.where(FlatC == cluster)[0].tolist()
         sorted_cluster_to_indices = dict(sorted(cluster_to_indices.items(), key=lambda item: len(item[1]), reverse=True))
         TenLargestClusters = dict(list(sorted_cluster_to_indices.items())[:8])
-        #get keys
-        clusterKeysList = list(TenLargestClusters.keys())
-        colornum = 1
-        for key in clusterKeysList:
-            TenLargestClusters[(key, f"C{colornum}")] = TenLargestClusters.pop(key)
-            colornum += 1
 
         print(f"TenLargestClusters: {TenLargestClusters}")
 
@@ -323,33 +331,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
             print(f"Cluster {cluster} has {len(indices)} datasets: {indices}")
         print(f"Number of clusters: {len(TenLargestClusters)}")
 
-        #get leaves list from dendrogram
-        leavesList = X['leaves']
-        indiceColorList = []
-        NewColorList = []
-
-        #generate new color list based on the cluster_to_indices mapping
-        for i, leaf in enumerate(leavesList):
-            cluster_number = find_cluster_for_index(TenLargestClusters, leaf)
-            if cluster_number is not None:
-                #get the color for this cluster from the dendrogram
-                indiceColorList.append((i, leaf, cluster_number[0], cluster_number[1]))
-            else:
-                indiceColorList.append((i, leaf, None, 'C0'))
-
-        print(f"indiceColorList: {indiceColorList}")
-
-        for i, j in zip(leavesList, indiceColorList):
-            if i == j[1]:
-                NewColorList.append(j[3])
-            else:
-                print(f"Warning: Mismatch in leaves and indices. Leaf {i} does not match index {j[1]}.")
-
-        if len(NewColorList) != len(X['leaves_color_list']):
-            print(f"Warning: Mismatch in color list lengths. NewColorList has {len(NewColorList)} colors, but dendrogram has {len(X['leaves_color_list'])} colors.")
-        
-        print(f"NewColorList: {NewColorList}")
-
+        #Count the occurrences of each cluster and color
         cluster_counts = collections.Counter(FlatC)
         color_counts = collections.Counter(X['leaves_color_list'])
 
@@ -373,7 +355,8 @@ class PrePlotDendrogram(QtWidgets.QWidget):
             if cluster_count == color_count:
                 cluster_to_color[cluster] = color
             else:
-                print(f"Warning: Count mismatch! Cluster {cluster} has {cluster_count}, Color {color} has {color_count}")
+                print(f"Warning: Count mismatch! Cluster {cluster} has {cluster_count}, Color {color} has {color_count}, possible due to large number of clusters")
+                cluster_to_color[cluster] = color
 
         #Create legend using matched clusters
         legend_handles = []
@@ -387,10 +370,16 @@ class PrePlotDendrogram(QtWidgets.QWidget):
                     title_fontsize="medium")
 
         self.dendroPlot.tight_layout()
-        if len(sorted_clusters) >= 2:
-            self.Title.setText(f"Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets\
+        if len(sorted_clusters) >= 10:
+            self.dendroTitle.setText(f"Warning: Colors may not match clusters due to large number of clusters, this is an internal problem for scipy \nDendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets\
+                            \nThe second largest cluster is cluster {sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets")
+        elif len(sorted_clusters) >= 2 and len(sorted_clusters) < 10:
+            self.dendroTitle.setText(f"Found less than 10 clusters, colors should match\nDendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets\
                             \nThe second largest cluster is cluster {sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets")
         else:
-            self.Title.setText(f"Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets")
+            if len(sorted_clusters) == 1 and sorted_clusters[0][1] > 1:
+                self.dendroTitle.setText(f"Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets")
+            else:
+                self.dendroTitle.setText(f"Dendrogram with threshold: {threshold}, no clusters with more than 1 datasets found")
 
         self.dendroCanvas.draw()
