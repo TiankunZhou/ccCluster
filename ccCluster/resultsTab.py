@@ -10,9 +10,7 @@ __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtWidgets import QWidget, QApplication
-import matplotlib.pyplot as plt
+from PyQt5 import QtCore, QtWidgets
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
@@ -21,12 +19,8 @@ from scipy.cluster import hierarchy
 from .clustering import extractXSCALEStat, checkIndices, find_cluster_for_index, colors
 import collections
 import operator
-import stat
 
 # implement the default mpl key bindings
-import sys
-import os
-import subprocess
 import matplotlib.patches as mpatches
 import numpy as np
 
@@ -219,14 +213,16 @@ class MultiPlotTab(QtWidgets.QWidget):
 
 #create pre-plot dendrogram tab to plot the dendrogram with given Threshold
 class PrePlotDendrogram(QtWidgets.QWidget):
-    def __init__(self, ccClusterfile:QtWidgets.QLineEdit, Threshold:QtWidgets.QLineEdit, setupCC_method):
+    def __init__(self, ccClusterfile:QtWidgets.QLineEdit, Threshold:QtWidgets.QLineEdit, SelectedCluster:QtWidgets.QLineEdit, setupCC_method):
         super().__init__()
         self.ccClusterfile_widget = ccClusterfile
         self.threshold_widget = Threshold
         self.setupCC_method = setupCC_method
+        self.SelectedCluster = SelectedCluster
 
         #setup layout
         self.tabLayout = QtWidgets.QVBoxLayout(self)
+        self.tabLayout.setContentsMargins(0, 0, 0, 0)
 
         #setup tabs widget
         self.dendroClusterTabs = QtWidgets.QTabWidget()
@@ -236,8 +232,8 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.dendrotabLayout = QtWidgets.QVBoxLayout(self.dendrotab)
 
         self.dendroTitle=QtWidgets.QLabel(self)
-        self.dendroTitle.setText(f"Dendrogram with threshold: {self.threshold_widget.text().strip() if self.threshold_widget else ''}")
-        self.dendroTitle.setStyleSheet("color: black; font-weight: bold; font-size: 12px;")
+        self.dendroTitle.setText(f"<html><span style='color: black; font-weight: bold; font-size: 14px;'>Dendrogram with threshold: \
+                                 {self.threshold_widget.text().strip() if self.threshold_widget else ''}</span></html>")
     
         #set up the plot
         self.dendroPlot = Figure()
@@ -250,14 +246,43 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.dendroplotButton.setFixedSize(200, 30)
         self.dendroplotButton.clicked.connect(self.on_plot_clicked)
 
-        #add widgets to layout
+        #add Dendrogram widgets to layout
         self.dendrotabLayout.addWidget(self.dendroTitle, 1, alignment=QtCore.Qt.AlignCenter)
         self.dendrotabLayout.addWidget(self.dendroplotButton, 1, alignment=QtCore.Qt.AlignCenter)
         self.dendrotabLayout.addWidget(self.dendrostatsBar, 1)
-        self.dendrotabLayout.addWidget(self.dendroCanvas, 17)
+        self.dendrotabLayout.addWidget(self.dendroCanvas, 27)
+
+        #Set up the clutster content tab
+        self.clusterContentTab = QtWidgets.QWidget()
+        self.clusterContentLayout = QtWidgets.QVBoxLayout(self.clusterContentTab)
+
+        #setup the cluster content text area
+        self.clustercontentTitle=QtWidgets.QLabel(self)
+        self.clustercontentTitle.setText(f"<html><span style='color: black; font-weight: bold; font-size: 14px;'>Cluster content with threshold: {self.threshold_widget.text().strip() if self.threshold_widget else ''}\
+                                        The merged cluster and the corresponding datasets will be shown in <span style='color: blue;'>BLUE</span> color</span></html>")
+        self.ShowNUmAndPathTitle=QtWidgets.QLabel(self)
+        self.ShowNUmAndPathTitle.setText(f"<html><span style='color: black; font-weight: bold; font-size: 12px;'>The number and path of the datasets in \
+                                        the merged cluster will be shown below as HTML for checking</span></html>")
+        self.clusterContentText = QtWidgets.QTextEdit()
+        self.clusterContentText.setReadOnly(True)
+        self.clusterContentText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
+        self.ShowOnlyPathTitle=QtWidgets.QLabel(self)
+        self.ShowOnlyPathTitle.setText(f"<html><span style='color: black; font-weight: bold; font-size: 12px;'>The path of the datasets in the \
+                                      merged cluster will be shown below as plain text for copying</span></html>")
+        self.clusterPathText = QtWidgets.QTextEdit()
+        self.clusterPathText.setReadOnly(True)
+        self.clusterPathText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
+
+        #add the cluster content text area to the layout
+        self.clusterContentLayout.addWidget(self.clustercontentTitle, 1, alignment=QtCore.Qt.AlignCenter)
+        self.clusterContentLayout.addWidget(self.ShowNUmAndPathTitle, 1, alignment=QtCore.Qt.AlignCenter)
+        self.clusterContentLayout.addWidget(self.clusterContentText, 28)
+        self.clusterContentLayout.addWidget(self.ShowOnlyPathTitle, 1, alignment=QtCore.Qt.AlignCenter)
+        self.clusterContentLayout.addWidget(self.clusterPathText, 14)
 
         #add tabs 
-        self.dendroClusterTabs.addTab(self.dendrotab, "prePlot Dendrogram")
+        self.dendroClusterTabs.addTab(self.dendrotab, "Dendrogram Plot")
+        self.dendroClusterTabs.addTab(self.clusterContentTab, "Cluster Content")
 
         #add widget
         self.tabLayout.addWidget(self.dendroClusterTabs)
@@ -268,11 +293,13 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         #get current values from the widgets
         ccClusterfile = self.ccClusterfile_widget.text() if self.ccClusterfile_widget else None
         threshold_text = self.threshold_widget.text().strip() if self.threshold_widget else None
+        SelectedClusterText = self.SelectedCluster.text().replace(',', ' ').strip() if self.SelectedCluster else None
         
         if threshold_text:
             try:
                 threshold = round(float(threshold_text), 2)
                 self.PlotDendrogram(ccClusterfile, threshold)
+                self.showMergedCluster(ccClusterfile, threshold, SelectedClusterText)
             except ValueError:
                 #Show error for invalid threshold
                 self.Ax.clear()
@@ -281,6 +308,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
                 self.dendroCanvas.draw()
         else:
             self.PlotDendrogram(ccClusterfile, None)
+            self.showMergedCluster(ccClusterfile, None, SelectedClusterText)
 
 
     #prepare Dendrogram with current threshold
@@ -317,19 +345,6 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         #As they contains same amount od datasets ONLY IF the number of cluster is smaller than 10
         #get the FlatC with the same threshold
         FlatC = hierarchy.fcluster(Tree, threshold, criterion='distance')
-
-        #create a mapping from cluster number to indices in FlatC
-        cluster_to_indices = {}
-        for cluster in np.unique(FlatC):
-            cluster_to_indices[cluster] = np.where(FlatC == cluster)[0].tolist()
-        sorted_cluster_to_indices = dict(sorted(cluster_to_indices.items(), key=lambda item: len(item[1]), reverse=True))
-        TenLargestClusters = dict(list(sorted_cluster_to_indices.items())[:8])
-
-        print(f"TenLargestClusters: {TenLargestClusters}")
-
-        for cluster, indices in TenLargestClusters.items():
-            print(f"Cluster {cluster} has {len(indices)} datasets: {indices}")
-        print(f"Number of clusters: {len(TenLargestClusters)}")
 
         #Count the occurrences of each cluster and color
         cluster_counts = collections.Counter(FlatC)
@@ -371,15 +386,103 @@ class PrePlotDendrogram(QtWidgets.QWidget):
 
         self.dendroPlot.tight_layout()
         if len(sorted_clusters) >= 10:
-            self.dendroTitle.setText(f"Warning: Colors may not match clusters due to large number of clusters, this is an internal problem for scipy \nDendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets\
-                            \nThe second largest cluster is cluster {sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets")
+            self.dendroTitle.setText(f"<html><span style='color: red; font-weight: bold; font-size: 14px;'>Warning: Colors may not match clusters due to large number of clusters, please check cluster content tab</span><br>\
+                                    <span style='font-weight: bold; font-size: 14px;'>Dendrogram with threshold: <span style='font-weight: bold;'>{threshold}</span>, the largest cluster is cluster \
+                                    <span style='color: blue;'>{sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets</span>\
+                                    The second largest cluster is cluster <span style='color: blue; font-weight: bold;'>{sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets</span></html>")
         elif len(sorted_clusters) >= 2 and len(sorted_clusters) < 10:
-            self.dendroTitle.setText(f"Found less than 10 clusters, colors should match\nDendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets\
-                            \nThe second largest cluster is cluster {sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets")
+            self.dendroTitle.setText(f"<html><span style='color: green; font-weight: bold; font-size: 14px;'>Found less than 10 clusters, colors should match</span><br>\
+                                    <span style='font-weight: bold; font-size: 14px;'>Dendrogram with threshold: <span style='color: blue;'>{threshold}</span>, the largest cluster is cluster <span style='color: blue;'>{sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets</span>\
+                                    The second largest cluster is cluster <span style='color: blue;'>{sorted_clusters[1][0]} with {sorted_clusters[1][1]} datasets</span></html>")
         else:
             if len(sorted_clusters) == 1 and sorted_clusters[0][1] > 1:
-                self.dendroTitle.setText(f"Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets")
+                self.dendroTitle.setText(f"<html><span style='color: black; font-weight: bold;'>Dendrogram with threshold: {threshold}, the largest cluster is cluster {sorted_clusters[0][0]} with {sorted_clusters[0][1]} datasets</span></html>")
             else:
-                self.dendroTitle.setText(f"Dendrogram with threshold: {threshold}, no clusters with more than 1 datasets found")
+                self.dendroTitle.setText(f"<html><span style='color: black; font-weight: bold;'>Dendrogram with threshold: {threshold}, no clusters with more than 1 datasets found</span></html>")
 
         self.dendroCanvas.draw()
+
+
+    #function to show the contents of merged cluster in a new tab, it will get some data from the Plotdrogram function, so it should be called after PlotDendrogram
+    def showMergedCluster(self, ccClusterfile:str=None, threshold:float=None, SelectedClusterStr:str=None):
+        #Check if ccClusterfile and threshold are valid
+        if ccClusterfile is None:
+            self.clusterContentText.setText("No ccCluster file in Work dir")
+            return None
+                
+        if threshold is None:
+            self.clusterContentText.setText("No threshold provided")
+            return None
+
+        #Get FlatC and etiquets from the ccClusterfile
+        _, Tree, etiquets, _ = self.setupCC_method(ccClusterfile)
+        FlatC = hierarchy.fcluster(Tree, threshold, criterion='distance')
+        counter=collections.Counter(FlatC)
+
+        #create a list of selected clusters, need to have SelectedClusterStr.strip() != "", as it may pass a empty string, which will cause error when split
+        if SelectedClusterStr is not None and SelectedClusterStr.strip() != "":
+            #change the SelectedClusterStr to a list of integers, if it fails, use the largest cluster instead
+            #the selected cluster number needs to be a int, or it cannot compare with cluster number (np.unique(FlatC) returns a list of int)
+            try:
+                SelectedCluster = [int(x) for x in SelectedClusterStr.split()]
+            except ValueError:
+                print(f"Warning: Invalid cluster numbers provided: {SelectedClusterStr}. Using the largest cluster instead.")
+                SelectedCluster = [max(counter.items(), key=operator.itemgetter(1))[0]]
+        else:
+            print(f"No selected clusters provided, using the largest cluster instead.")
+            SelectedCluster = [max(counter.items(), key=operator.itemgetter(1))[0]]
+
+        #Check whether FlatC indices matches etiques
+        CheckIndices = checkIndices(FlatC, etiquets)
+        if not CheckIndices:
+            self.clusterContentText.setText(f"<html><span style='color: red; font-weight: bold; font-size: 18px;'>Warning: Mismatch between dataset number in ccClusterlogtxt and FlatC, \
+                                            please check the ccCluster file</span></html>")
+        else:
+            #Get the indices of the datasets in each cluster and sort them by size
+            clusterAndDataset = {}
+            for cluster in np.unique(FlatC):
+                indice = np.where(FlatC == cluster)[0].tolist()
+                #use list comprehension to create a list of tuples (index, path) for each dataset in the cluster, and check whether the index matches the dataset number in etiquets
+                tmpList = [(i, etiquets[i][1]) if int(etiquets[i][0]) == i else print(f"Warning: Mismatch in cluster assignment for dataset {etiquets[i][0]} and {i}") for i in indice]
+                clusterAndDataset[cluster] = tmpList
+            sorted_clusterAndDataset = dict(sorted(clusterAndDataset.items(), key=lambda item: len(item[1]), reverse=True))
+
+            #for debug use, commented out to avoid cluttering the output
+            #print(f"SortedClusterToIndices: {sorted_clusterAndDataset}")
+            #print(f"etiquets: {etiquets}")
+            """for cluster, datasets in sorted_clusterAndDataset.items():
+                print(f"{cluster} has {len(datasets)} datasets:")
+                for data in datasets:
+                    print(f"{data}")"""
+
+            #set title for the cluster content text with HTML format. For non-input text should be OK, otherwise use plain text to avoid the input text being interpreted as HTML
+            self.clustercontentTitle.setText(f"<html><span style='color: black; font-weight: bold; font-size: 14px;'>Cluster content with threshold: \
+                                                        {self.threshold_widget.text().strip() if self.threshold_widget else ''}; \
+                                                      The merged cluster and the corresponding datasets will be shown in <span style='color: blue;'>BLUE</span> color</span></html>")
+
+            #add the cluster content to the text area with the selected clusters highlighted in blue
+            content = ""
+            for cluster, datasets in sorted_clusterAndDataset.items():
+                if SelectedCluster is not None and cluster in SelectedCluster:
+                    content += f"<span style='color: blue; font-weight: bold;'>Cluster {cluster} ({len(datasets)} datasets):</span><br>"
+                    for data in datasets:
+                        content += f"<span style='color: blue;'>data number: {data[0]}; data path: {data[1]}</span><br>"
+                else:
+                    content += f"<span style='font-weight: bold;'>Cluster {cluster} ({len(datasets)} datasets):</span><br>"
+                    for data in datasets:
+                        content += f"data number: {data[0]}; data path: {data[1]}<br>"
+            self.clusterContentText.setHtml(content)
+
+            #add the path of the datasets in the selected clusters to the clusterPathText area for copying
+            path_content = ""
+            for cluster, datasets in sorted_clusterAndDataset.items():
+                if SelectedCluster is not None and cluster in SelectedCluster:
+                    path_content += f"Cluster {cluster} ({len(datasets)} datasets):\n"
+                    for data in datasets:
+                        path_content += f"{data[1]}\n"
+                else:
+                    path_content += f"Cluster {cluster} ({len(datasets)} datasets):\n"
+                    for data in datasets:
+                        path_content += f"{data[1]}\n"
+            self.clusterPathText.setPlainText(path_content)
+            

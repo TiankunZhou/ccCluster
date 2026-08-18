@@ -11,7 +11,7 @@ __status__ = "Beta"
 
 
 from scipy.cluster import hierarchy
-import scipy
+#import scipy
 import matplotlib as mpl
 from matplotlib.figure import Figure
 mpl.use('Agg')
@@ -21,14 +21,12 @@ import numpy as np
 import subprocess
 import collections
 import operator
-import stat
 import json
 import random
 import textwrap
 import re
 import matplotlib.patches as mpatches
 from pathlib import Path
-
 
 
 #Set color for printing
@@ -219,7 +217,7 @@ class Clustering():
                         'input_file':hkl,
                         'cluster':str(cluster)
                         })
-                print(f"prepare to convent cluster information toflatCluster.json: \n{clusterToJson}")
+                print(f"prepare to convent cluster information to flatCluster.json: \n{clusterToJson}")
                 json.dump(clusterToJson, clusterFile, indent=4)
         else:
             print(f"Run dir for flatClusterPrinter does not exist, please check: {abs_run_dir}")
@@ -349,6 +347,12 @@ class Clustering():
             self.SelectedCluster = clusterList
 
         print(f"Checking selected cluster for XSCALE: {self.SelectedCluster}")
+        #check to make sure at least one of the selected cluster is in the FlatC list, otherwise it will not be processed
+        Checkitem = all(num not in FlatC for num in self.SelectedCluster)
+        if Checkitem:
+            print(f"{colors.RED}Warning: None of the selected clusters exist in the FlatC list, XSCALE will not start, please check{colors.ENDC}")
+            return False, None
+
         for num in self.SelectedCluster:
             if num in FlatC:
                 print(f"cluster number {num} exist, will be merged")
@@ -408,6 +412,12 @@ class Clustering():
             self.SelectedCluster = clusterList
 
         print(f"Checking selected cluster for XSCALE: {self.SelectedCluster}")
+        #check to make sure at least one of the selected cluster is in the FlatC list, otherwise it will not be processed
+        Checkitem = all(num not in FlatC for num in self.SelectedCluster)
+        if Checkitem:
+            print(f"{colors.RED}Warning: None of the selected clusters exist in the FlatC list, Aimless and Pointless will not run, please check{colors.ENDC}")
+            return False, None
+        
         for num in self.SelectedCluster:
             if num in FlatC:
                 print(f"cluster number {num} exist, will be merged")

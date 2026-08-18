@@ -11,18 +11,15 @@ __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-import matplotlib.pyplot as plt
-import sys
+
 import os
-import subprocess
-#import ccCluster classes
 from .clustering import Clustering
 # Insert parse  to change the file path from command line
 import argparse
 import textwrap
-import numpy as np
-#Startup message
 
+
+#Startup message
 print(r"""ccCluster - HCA for protein crystallography
 G. Santoni and A. Popov, 2015-2019
               v .   ._, |_  .,
@@ -38,6 +35,24 @@ G. Santoni and A. Popov, 2015-2019
                      |    |
 --------------------/ ,  . \--------._
 """)
+
+
+#How to use
+"""
+e.g.
+to run the program in shell mode, use -p to process the data
+ccCluster -p -i ccClusterlog.txt -o output_dir -t threshold -ano -ref reference_HKL -clu cluster1 cluster2 cluster3 ...
+or
+ccCluster -p -i ccClusterlog.txt -o output_dir -t threshold -ref reference_HKL -clu cluster1 cluster2 cluster3 ...
+
+to check the multiplicity of the biggest cluster and exit, use -c
+ccCluster -c -i ccClusterlog.txt
+
+to estimate the threshold value and exit, use -e
+ccCluster -e -i ccClusterlog.txt
+
+"""
+
 
 def process_args():
     input_args = argparse.ArgumentParser()

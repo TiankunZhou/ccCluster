@@ -14,25 +14,14 @@ __status__ = "Beta"
 #implement the default mpl key bindings
 from PyQt5 import QtGui, QtCore, QtWidgets
 from PyQt5.QtWidgets import QWidget, QApplication
-import matplotlib.pyplot as plt
 import sys
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
-import matplotlib.patches as mpatches
+import json
 
 #import CalcClass
-from scipy.cluster import hierarchy
-import collections
-import operator
-from time import sleep
 import os
 from .resultsTab import SinglePlotTab, MultiPlotTab, PrePlotDendrogram
-from .summary import resultsSummary
 from .clustering import Clustering, extractXSCALEStat, checkIndices, colors
 from .ccCalc import ccList
-
-#Insert parse  to change the file path from command line
-import argparse
 
 #Deal with wild card
 import glob
@@ -58,7 +47,11 @@ G. Santoni and A. Popov, 2015
 """)
 
 
+#How to use
+"""
+ccCluster-gui
 
+"""
 
 
 #here is the class that creates the tab for ccCal, 
@@ -635,6 +628,128 @@ class tab_ccCluster(QWidget):
         return XSCALEstat
 
 
+    #function to get merged cluster from XSCALE.LP and flatCluster.json, and show the result in new tab
+    def MergedDataTab(self, result_name:str):
+        #set up main widget and layout
+        MergedDataWidget = QtWidgets.QWidget()
+        MergedDataLayout = QtWidgets.QVBoxLayout(MergedDataWidget)
+
+        #setup the textbox to show the merged cluster information
+        MergedClusterText = QtWidgets.QTextEdit()
+        MergedClusterText.setReadOnly(True)
+        MergedClusterText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
+
+        #setup the textbox to show the seletcted path
+        SelectedPathText = QtWidgets.QTextEdit()
+        SelectedPathText.setReadOnly(True)
+        SelectedPathText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
+
+        #define XSCALE.LP and flatCluster.json path
+        XSCALEFile = os.path.join(self.realTimeUpdate.shareWorkDir, f"{result_name}/XSCALE.LP")
+        flatClusterFile = os.path.join(self.realTimeUpdate.shareWorkDir, f"{result_name}/flatCluster.json")
+
+        #open flatCluster.json and get the merged cluster information
+        if not os.path.isfile(flatClusterFile):
+            self.update_ccClusterStatusBar(f"No flatCluster.json found in {self.realTimeUpdate.shareWorkDir}, please check")
+        else:
+            with open(flatClusterFile, 'r') as f:
+                flatClusterData = json.load(f)
+
+            #get the [num, path], cluster]
+            NumAndPathDict = {}
+            for i in flatClusterData["HKL"]:
+                #in this functon the cluster is a string by default,as no numpy is involved
+                NumAndPathDict.setdefault(i["cluster"], []).append(i["input_file"])
+
+            #sort the NumAndPathDict by cluster number
+            sortedNumAndPathDict = dict(sorted(NumAndPathDict.items(), key=lambda item: len(item[1]), reverse=True))
+
+            #get the merged files from XSCALE.LP
+            if not os.path.isfile(XSCALEFile):
+                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {self.realTimeUpdate.shareWorkDir}, please check")
+            else:
+                XSCALEPathList = []
+                with open(XSCALEFile, 'r') as f:
+                    for line in f:
+                        if "INPUT_FILE" in line:
+                            parts = line.split('=')
+                            if len(parts) == 2:
+                                path = parts[1].strip()
+                                XSCALEPathList.append(path)
+
+                #debug print commented out
+                #print(f"NumAndPathDict:\n{sortedNumAndPathDict}")
+                #print(f"XSCALEPathList:\n{XSCALEPathList}")
+
+                #check whether the merged cluster files are in the XSCALEPathList
+                selected_cluster = result_name.split("_")[3].split("n")
+                def is_merged_cluster():
+                    for cluster, datasets in sortedNumAndPathDict.items():
+                        #print(f"Checking cluster: {cluster}")
+                        #print(f"Selected clusters: {selected_cluster}")
+                        #cluster has been converted to string before
+                        if cluster in selected_cluster:
+                            for data in datasets:
+                                #print(f"Checking data: {data[1]} in XSCALEPathList")
+                                if data[1] not in XSCALEPathList:
+                                    return False
+                    return True
+
+                CheckJsonLP = is_merged_cluster()
+                if not CheckJsonLP:
+                    self.update_ccClusterStatusBar(f"Warning: The merged cluster in flatCluster.json does not match the XSCALE.LP input files, please check")
+                else:
+                    #add the cluster content to the text area with the selected clusters highlighted in blue
+                    content = ""
+                    #in this functon the cluster is a string
+                    for cluster, datasets in sortedNumAndPathDict.items():
+                        print(f"type of cluster: {type(cluster)}, value: {cluster}")
+                        if selected_cluster is not None and cluster in selected_cluster:
+                            content += f"<span style='color: blue; font-weight: bold;'>Cluster {cluster} ({len(datasets)} datasets):</span><br>"
+                            for data in datasets:
+                                content += f"<span style='color: blue;'>data number: {data[0]}; data path: {data[1]}</span><br>"
+                        else:
+                            content += f"<span style='font-weight: bold;'>Cluster {cluster} ({len(datasets)} datasets):</span><br>"
+                            for data in datasets:
+                                content += f"data number: {data[0]}; data path: {data[1]}<br>"
+                    MergedClusterText.setHtml(content)
+        
+                    #add the path of the datasets in the selected clusters to the clusterPathText area for copying
+                    path_content = ""
+                    for cluster, datasets in sortedNumAndPathDict.items():
+                        if selected_cluster is not None and cluster in selected_cluster:
+                            path_content += f"Cluster {cluster} ({len(datasets)} datasets):\n"
+                            for data in datasets:
+                                path_content += f"{data[1]}\n"
+                        else:
+                            path_content += f"Cluster {cluster} ({len(datasets)} datasets):\n"
+                            for data in datasets:
+                                path_content += f"{data[1]}\n"
+                    SelectedPathText.setPlainText(path_content)
+
+            #setup title for the plotting widget
+            MergedDataTitle = QtWidgets.QLabel(f"<html><span style='color: black; font-weight: bold; font-size: 14px;'>Cluster content with threshold: \
+                                        {self.ShowThreshold.text().strip() if self.ShowThreshold else ''}; \
+                                        The merged cluster and the corresponding datasets will be shown in <span style='color: blue;'>BLUE</span> color</span></html>")
+
+            #set up title for the selected cluster
+            NumAndPathTitle = QtWidgets.QLabel(f"<html><span style='color: black; font-weight: bold; font-size: 12px;'>The number and path of the datasets in \
+                                        the merged cluster will be shown below as HTML for checking</span></html>")
+            
+            #setup title for only the path for selection
+            SelectedPathTitle = QtWidgets.QLabel(f"<html><span style='color: black; font-weight: bold; font-size: 12px;'>The path of the datasets in the merged \
+                                                 cluster will be shown below as plain text for copying</span></html>")
+
+            #put in to layouts
+            MergedDataLayout.addWidget(MergedDataTitle, 1, alignment=QtCore.Qt.AlignCenter)
+            MergedDataLayout.addWidget(NumAndPathTitle, 1, alignment=QtCore.Qt.AlignCenter)
+            MergedDataLayout.addWidget(MergedClusterText, 28)
+            MergedDataLayout.addWidget(SelectedPathTitle, 1, alignment=QtCore.Qt.AlignCenter)
+            MergedDataLayout.addWidget(SelectedPathText, 14)
+
+        return MergedDataWidget
+
+            
     #function to add result tab in the self.PlottingTabWidget for realtime update when new result is generated or deleted
     def CreateResultTabs(self, result_name:str):
         result_folder = os.path.join(os.path.abspath(self.realTimeUpdate.shareWorkDir), result_name)
@@ -658,6 +773,9 @@ class tab_ccCluster(QWidget):
 
         #add dendrogram plot for the result as a tab
         resultTab.addTab(DendroprocessedWidget, "Dendrogram")
+
+        #add the merged cluster content and path as a tab
+        resultTab.addTab(self.MergedDataTab(result_name), "Merged Cluster Content")
 
         #set up the tab for statistics from XSCALE.LP
         resultTab.addTab(self.CreateXSCALEStatTab(xscale_path), "XSCALE Statistics")
@@ -739,7 +857,7 @@ class tab_ccCluster(QWidget):
         self.PlottingTabWidget = QtWidgets.QTabWidget()
 
         #add the dendro pre plot tab to the plotting layout
-        self.PlottingTabWidget.addTab(PrePlotDendrogram(self.ccClusterLogPath_text, self.ShowThreshold, self.realTimeUpdate.setupCC), "Pre-plot Dendrogram with threshold")
+        self.PlottingTabWidget.addTab(PrePlotDendrogram(self.ccClusterLogPath_text, self.ShowThreshold, self.mergeGroup, self.realTimeUpdate.setupCC), "Pre-plot Dendrogram with threshold")
         
         #setup tabs for each merged result
         if not self.realTimeUpdate.MergeResult:

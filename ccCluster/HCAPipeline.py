@@ -11,18 +11,39 @@ __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-
-import matplotlib.pyplot as plt
-import sys
 import os
 import time
-import subprocess
 from os.path import join , isfile
 #import ccCluster classes to run the soft
 from .ccCalc import ccList
 from .clustering import Clustering
 import argparse
 
+#Startup message
+print(r"""ccCluster - HCA for protein crystallography
+G. Santoni and A. Popov, 2015-2019
+              v .   ._, |_  .,
+           `-._\/  .  \ /    |/_
+               \\  _\, y | \//
+         _\_.___\\, \\/ -.\||
+           `7-,--.`._||  / / ,
+           /'     `-. `./ / |/_.'
+                     |    |//
+                     |_    /
+                     |-   |
+                     |   =|
+                     |    |
+--------------------/ ,  . \--------._
+""")
+
+#How to use
+"""
+e.g.
+HCAPipeline -f file1 file2 file3 ... -o output_dir -t threshold -ano -ref reference_HKL -clu cluster1 cluster2 cluster3 ...
+or
+HCAPipeline -f file1 file2 file3 ... -o output_dir -t threshold -ref reference_HKL -clu cluster1 cluster2 cluster3 ...
+
+"""
 
 #pass arguements
 def process_args():

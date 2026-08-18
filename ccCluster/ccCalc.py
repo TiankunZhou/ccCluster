@@ -14,14 +14,10 @@ __status__ = "Beta"
 
 from iotbx.reflection_file_reader import any_reflection_file
 from iotbx.xds.integrate_hkl import reader
-import cctbx.miller as mil
 from math import *
-import collections
 import itertools
 import argparse
-import struct
 import os
-import multiprocessing
 
 
 ###
@@ -357,8 +353,7 @@ class ccList():
                         Ga.append(float(gamma))
         print(sg, file=self.GAinput) 
         print(sum(A)/len(A), sum(B)/len(B), sum(C)/len(C),sum(Al)/len(Al), sum(Be)/len(Be),sum(Ga)/len(Ga), file=self.GAinput)
-            
-            
+      
     
 #following function outputs the UC parameter and SG to be sent to codgas, using CCTBX
     def getUnitCell(self, arg):
@@ -649,38 +644,6 @@ def main():
         print("Calculating CC between specified files")
         ccList(args.structures)
         correlationFile='ccClusterLog.txt'
-
-
-"""Region commented out from older version.
-Check that everything is still running
-
-"""
-    # if args.outname:
-    #     LogFile= open(args.outname, 'w')
-    # elif args.compl:
-    #     LogFile= open('CellClusterLog.txt', 'w')
-    # else:
-    #     LogFile= open('ccClusterLog.txt', 'w')
-    # proc = multiprocessing.Pool(processes=8)
-    # print('Read all input files')
-
-    # if args.compl:
-    #     a, b, cc = zip(*proc.map(cellPrint, itertools.combinations(HKLarrays, 2)))
-    #     print('Done!')
-    # else:
-    #     a, b, cc = zip(*proc.map(ccPrint, itertools.combinations(HKLarrays, 2)))
-    #     print('Done!')
-
-    # #Printing output file
-    # print('Labels', file=LogFile)
-    # for n in enumerate(args.structures):
-    #     print('INPUT_FILE: %s   %s'%(n[0], os.path.abspath(n[1])),file=LogFile)
-
-
-    # print('Correlation coefficients', file=LogFile)
-    # print(a)
-    # for L in zip(a, b, cc):
-    #     print('%s   %s   %s'%(L[0], L[1], L[2]), file=LogFile)
 
 if __name__== '__main__':
     main()

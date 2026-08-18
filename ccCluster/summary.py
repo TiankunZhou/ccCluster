@@ -9,7 +9,7 @@ __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-from PyQt5 import QtGui, QtCore, QtWidgets
+from PyQt5 import QtWidgets
 import os, sys
 
 from .textSummary import generateLogSummary
