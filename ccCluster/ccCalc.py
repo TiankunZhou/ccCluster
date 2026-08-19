@@ -48,7 +48,7 @@ class ccCalc():
         self.results = self.calcSerial()
         #self.writeLog()
 
-        
+
     def loadReflections(self):
         """
         Loads a file using cctbx and puts the corresponding miller array in a dictionary.
@@ -65,6 +65,7 @@ class ccCalc():
             print('INPUT_FILE: %s   %s'%(n[0], os.path.abspath(n[1])),file=self.LogFile)
         return Arrays
 
+
     def writeLog(self):
         """
         Writes labels and distance matrix to a plain text file
@@ -75,6 +76,7 @@ class ccCalc():
         print('Correlation coefficients', file=self.LogFile)
         for L in self.results:
             print('%s   %s   %s'%(L[0], L[1], L[2]), file=self.LogFile)
+
 
     def ccPrint(self,  arglist):
         """
@@ -137,11 +139,13 @@ class ccCalc():
         variation = [fabs(a1-a2)/min(a1,a2),fabs(b1-b2)/min(b1,b2),fabs(c1-c2)/min(c1, c2)]
         return gen1.__next__(), gen2.__next__(), max(variation)
 
+
     def calcSerial(self):
         print('Correlation coefficients', file=self.LogFile)
         for x in itertools.combinations(self.Arrays, 2):
             a, b, cc = self.ccPrint(x)
             print('%s   %s   %s'%(a , b , cc), file=self.LogFile)
+
 
     def calcAll(self):
         proc = Pool(4)
@@ -179,6 +183,7 @@ class cellCalc():
             print('INPUT_FILE: %s   %s'%(n[0], os.path.abspath(n[1])),file=self.LogFile)
         return Arrays
 
+
     def writeLog(self):
         print('Labels', file=self.LogFile)
         for n in enumerate(self.argList):
@@ -186,6 +191,7 @@ class cellCalc():
         print('Correlation coefficients', file=self.LogFile)
         for L in self.results:
             print('%s   %s   %s'%(L[0], L[1], L[2]), file=self.LogFile)
+
 
     def ccPrint(self,  arglist):
         Array1 = self.Arrays[arglist[0]]
@@ -235,6 +241,7 @@ class cellCalc():
         variation = [fabs(a1-a2)/min(a1,a2),fabs(b1-b2)/min(b1,b2),fabs(c1-c2)/min(c1, c2)]
         return gen1.__next__(), gen2.__next__(), max(variation)
 
+
     def cellSerial(self):
         print('Correlation coefficients', file=self.LogFile)
         for x in itertools.combinations(self.Arrays, 2):
@@ -263,7 +270,6 @@ class ccList():
         self.results = self.calcSerial()
         self.simpleAvgCell()
 
-
         
     def loadReflections(self):
         Arrays = {}
@@ -280,6 +286,7 @@ class ccList():
             print('INPUT_FILE: %s   %s'%(n[0], n[1]),file=self.LogFile)
         return Arrays
 
+
     def writeLog(self):
         print('Labels', file=self.LogFile)
         for n in enumerate(self.argList):
@@ -287,6 +294,7 @@ class ccList():
         print('Correlation coefficients', file=self.LogFile)
         for L in self.results:
             print('%s   %s   %s'%(L[0], L[1], L[2]), file=self.LogFile)
+
 
     def ccPrint(self,  arglist):
         Array1 = self.Arrays[arglist[0]]
@@ -315,18 +323,22 @@ class ccList():
             print('Calculated correlation between %s and %s'%(arglist[0],arglist[1]))         
         return gen1.__next__(), gen2.__next__(),sqrt(1.0001-cc**2)
 
+
     def calcSerial(self):
         print('Correlation coefficients', file=self.LogFile)
         for x in itertools.combinations(self.Arrays, 2):
             a, b, cc = self.ccPrint(x)
             print('%s   %s   %s'%(a , b , cc), file=self.LogFile)
 
+
     def calcAll(self):
         proc = Pool(4)
         a, b, cc = zip(*proc.map(self.ccPrint, itertools.combinations(self.Arrays, 2)))
         L = zip(a, b, cc)
         return L
-# simple tool for avg unit cell, parsing directly the HKL file.
+
+
+    #simple tool for avg unit cell, parsing directly the HKL file.
     def simpleAvgCell(self):
         A = []
         B = []
@@ -355,7 +367,7 @@ class ccList():
         print(sum(A)/len(A), sum(B)/len(B), sum(C)/len(C),sum(Al)/len(Al), sum(Be)/len(Be),sum(Ga)/len(Ga), file=self.GAinput)
       
     
-#following function outputs the UC parameter and SG to be sent to codgas, using CCTBX
+    #following function outputs the UC parameter and SG to be sent to codgas, using CCTBX
     def getUnitCell(self, arg):
         Array1 = arg
         b1 = Array1
@@ -364,6 +376,7 @@ class ccList():
         a1, b1, c1 = uc1[0], uc1[1], uc1[2]
         print(a1,b1,c1)
         return a1, b1, c1
+
 
     def calcAvgCell(self):
         A = []
@@ -381,11 +394,6 @@ class ccList():
         print("%s %s %s "%(avgA, avgB, avgC), self.GAinput)
 
 
-
-        
-        
-
-
         
         
 class cellList():
@@ -399,7 +407,6 @@ class cellList():
         self.argList= Arglist
         self.Arrays= self.loadReflections()
         self.results = self.cellSerial()
-
 
         
     def loadReflections(self):
@@ -417,6 +424,7 @@ class cellList():
             print('INPUT_FILE: %s   %s'%(n[0], n[1]),file=self.LogFile)
         return Arrays
 
+
     def writeLog(self):
         print('Labels', file=self.LogFile)
         for n in enumerate(self.argList):
@@ -424,6 +432,7 @@ class cellList():
         print('Correlation coefficients', file=self.LogFile)
         for L in self.results:
             print('%s   %s   %s'%(L[0], L[1], L[2]), file=self.LogFile)
+
 
     def cellPrint(self, arglist):
         Array1 = self.Arrays[arglist[0]]
@@ -443,6 +452,7 @@ class cellList():
         a2, b2, c2 = uc2[0], uc2[1], uc2[2]
         variation = [fabs(a1-a2)/min(a1,a2),fabs(b1-b2)/min(b1,b2),fabs(c1-c2)/min(c1, c2)]
         return gen1.__next__(), gen2.__next__(), max(variation)
+
 
     def cellSerial(self):
         print('Correlation coefficients', file=self.LogFile)
@@ -465,7 +475,6 @@ class blendList():
         self.results = self.cellSerial()
 
 
-        
     def loadReflections(self):
         Arrays = {}
         for x in self.argList:
@@ -481,6 +490,7 @@ class blendList():
             print('INPUT_FILE: %s   %s'%(n[0], n[1]),file=self.LogFile)
         return Arrays
 
+
     def writeLog(self):
         print('Labels', file=self.LogFile)
         for n in enumerate(self.argList):
@@ -489,11 +499,13 @@ class blendList():
         for L in self.results:
             print('%s   %s   %s'%(L[0], L[1], L[2]), file=self.LogFile)
 
+
     def diagonalCell(self, a, b, angle):
         cosArgument= radians(180-angle)
         diag = sqrt(a**2+b**2-2*a*b*cos(cosArgument))
         return diag
-    
+
+
     def blendLCV(self, arglist):
         Array1 = self.Arrays[arglist[0]]
         Array2 = self.Arrays[arglist[1]]
@@ -530,6 +542,7 @@ class blendList():
             print('%s   %s   %s'%(a , b , cc), file=self.LogFile)
 
 
+
 class commonList():
     """
     EXPERIMENTAL CODE!!!!! Do not use
@@ -544,7 +557,6 @@ class commonList():
         self.results = self.calcSerial()
 
 
-        
     def loadReflections(self):
         Arrays = {}
         for x in self.argList:
@@ -609,7 +621,6 @@ class commonList():
 
 
 
-
 def main():
 
     parser = argparse.ArgumentParser()
@@ -619,9 +630,11 @@ def main():
     parser.add_argument("-r", dest="run_dir", default= os.getcwd() ,  type=str, help='The run directory for the output files')
     args= parser.parse_args()
 
+    #get absolute paths for the run directory and the input files
+    runDir = os.path.abspath(args.run_dir)
+    abs_file_list = [os.path.abspath(f) for f in args.structures if os.path.isfile(f)]
 
 
-    CurrentDir= os.getcwd()
     if args.structures is None:
         if args.cell:
             print('No input specified, calculating cell distance')
@@ -635,15 +648,15 @@ def main():
             correlationFile='ccClusterLog.txt'
     elif args.cell:
         print("Calculating unit cell distance between specified files")
-        cellList(args.structures)
+        cellList(abs_file_list)
         correlationFile='cellClusterLog.txt'
     elif args.common :
         print('Warning! I am using the experimental common reflections feature!')
-        commonList(args.structures)
+        commonList(abs_file_list)
         correlationFile='Common.txt'
     else:
         print("Calculating CC between specified files")
-        ccList(args.structures, args.run_dir)
+        ccList(abs_file_list, runDir)
         correlationFile='ccClusterLog.txt'
 
 if __name__== '__main__':
