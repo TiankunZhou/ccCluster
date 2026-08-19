@@ -36,7 +36,7 @@ You should have all python libraries that needed for ccCluster.
 If not, you can use:
 
 ```
-conda install libraries_name -c conda forge
+conda install libraries_name -c conda-forge
 ```
 or
 ```
