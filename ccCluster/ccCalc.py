@@ -616,6 +616,7 @@ def main():
     parser.add_argument("-f", dest="structures", default= None ,  type=str, nargs='+', help='The list of refined structures to merge')
     parser.add_argument("-u", dest="cell", default= False , action="store_true" , help='Unit cell based clustering. requires list of input files')
     parser.add_argument("-c", dest="common", default= False , action="store_true" , help='Experimental class based on common reflections only')
+    parser.add_argument("-r", dest="run_dir", default= os.getcwd() ,  type=str, help='The run directory for the output files')
     args= parser.parse_args()
 
 
@@ -642,7 +643,7 @@ def main():
         correlationFile='Common.txt'
     else:
         print("Calculating CC between specified files")
-        ccList(args.structures)
+        ccList(args.structures, args.run_dir)
         correlationFile='ccClusterLog.txt'
 
 if __name__== '__main__':
