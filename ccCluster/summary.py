@@ -3,13 +3,13 @@ __author__ = "Gianluca Santoni & Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
-__version__ = "1.0"
+__version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
 __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-from PyQt5 import QtWidgets
+from PySide6 import QtWidgets
 import os, sys
 
 from .textSummary import generateLogSummary
@@ -43,7 +43,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     ex = resultsSummary()
     ex.show()
-    sys.exit(app.exec_())      
+    sys.exit(app.exec())
 
 if __name__== '__main__':
     main()

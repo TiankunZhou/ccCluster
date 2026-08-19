@@ -4,16 +4,16 @@ __author__ = "Gianluca Santoni & Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
-__version__ = "1.0"
+__version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
 __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-from PyQt5 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets
 from matplotlib.figure import Figure
-from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
 from pathlib import Path
 from scipy.cluster import hierarchy
 from .clustering import extractXSCALEStat, checkIndices, find_cluster_for_index, colors
@@ -269,7 +269,7 @@ class PrePlotDendrogram(QtWidgets.QWidget):
         self.ShowOnlyPathTitle=QtWidgets.QLabel(self)
         self.ShowOnlyPathTitle.setText(f"<html><span style='color: black; font-weight: bold; font-size: 12px;'>The path of the datasets in the \
                                       merged cluster will be shown below as plain text for copying</span></html>")
-        self.clusterPathText = QtWidgets.QTextEdit()
+        self.clusterPathText = QtWidgets.QPlainTextEdit()
         self.clusterPathText.setReadOnly(True)
         self.clusterPathText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
 

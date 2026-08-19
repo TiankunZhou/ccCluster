@@ -3,7 +3,7 @@ __author__ = "Gianluca Santoni"
 __copyright__ = "Copyright 2015-2019"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
-__version__ = "1.0"
+__version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
 __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
@@ -693,8 +693,8 @@ class Clustering():
                         #Xscale.write(f"MINIMUM_I/SIGMA= 0\n")
                 subprocess.run('xscale_par',cwd=self.CurrentDir+'/thr_%.2f_run_%s'%(float(thr),x))
 
-
-def main():
+#seems we do not need to run the main function, as we will call the clustering function from the ccCluster.py
+"""def main():
     from optparse import OptionParser
     parser = OptionParser(usage="%prog --XSCALEfile=<LP filename> --outname=<output dendogram>")
 
@@ -714,4 +714,4 @@ def main():
         CC.merge('ano', thr)
 
 if __name__== '__main__':
-    main()
+    main()"""

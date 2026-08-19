@@ -5,15 +5,15 @@ __author__ = "Gianluca Santoni & Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
 __credits__ = ["Gianluca Santoni, Alexander Popov"]
 __license__ = ""
-__version__ = "1.0"
+__version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
 __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
 #implement the default mpl key bindings
-from PyQt5 import QtGui, QtCore, QtWidgets
-from PyQt5.QtWidgets import QWidget, QApplication
+from PySide6 import QtGui, QtCore, QtWidgets
+from PySide6.QtWidgets import QWidget, QApplication
 import sys
 import json
 
@@ -57,7 +57,7 @@ ccCluster-gui
 #here is the class that creates the tab for ccCal, 
 #to generate ccClusterLog.txt in the target folder if it is not exist
 class tab_ccCal(QWidget):
-    def __init__(self, realTimeUpdates:MainWindow, **kwargs):
+    def __init__(self, realTimeUpdates:'MainWindow', **kwargs):
         #pass self to parent
         super().__init__()
 
@@ -135,7 +135,7 @@ class tab_ccCal(QWidget):
         self.check_ccCalLogStatus()
 
         #select paths of HKL files for ccCal
-        self.HKLPaths_text = QtWidgets.QTextEdit()
+        self.HKLPaths_text = QtWidgets.QPlainTextEdit()
         self.HKLPaths_text.setPlaceholderText(textwrap.dedent(f"""
                                         Please put absolute path of HKL files here
                                         e.g. 
@@ -235,7 +235,7 @@ class tab_ccCal(QWidget):
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self, "Select HKL File", "", "HKL Files (*.HKL *.hkl);;All Files (*)")
 
         if file_path:
-            self.HKLPaths_text.append(os.path.abspath(file_path))
+            self.HKLPaths_text.appendPlainText(os.path.abspath(file_path))
 
 
     #check whether ccClusterlog.txt exists in the work dir
@@ -640,7 +640,7 @@ class tab_ccCluster(QWidget):
         MergedClusterText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
 
         #setup the textbox to show the seletcted path
-        SelectedPathText = QtWidgets.QTextEdit()
+        SelectedPathText = QtWidgets.QPlainTextEdit()
         SelectedPathText.setReadOnly(True)
         SelectedPathText.setStyleSheet("background-color: #f0f0f0; font-size: 14px;")
 
@@ -703,7 +703,7 @@ class tab_ccCluster(QWidget):
                     content = ""
                     #in this functon the cluster is a string
                     for cluster, datasets in sortedNumAndPathDict.items():
-                        print(f"type of cluster: {type(cluster)}, value: {cluster}")
+                        #print(f"type of cluster: {type(cluster)}, value: {cluster}")
                         if selected_cluster is not None and cluster in selected_cluster:
                             content += f"<span style='color: blue; font-weight: bold;'>Cluster {cluster} ({len(datasets)} datasets):</span><br>"
                             for data in datasets:
@@ -1088,11 +1088,9 @@ class MainWindow(QtWidgets.QMainWindow):
             if folder_path.is_dir():
                 if not (folder_path/"XSCALE.LP").is_file():
                     print(f"No XSCALE.LP found in {folder_path}, please check")
-                    print(f"No XSCALE.LP found in {folder_path}, please check")
                     continue
 
                 if not (folder_path/"gallery/Dendrogram.png").is_file():
-                    print(f"No Dendrogram.png found in {folder_path}, please check")
                     print(f"No Dendrogram.png found in {folder_path}, please check")
                     continue
 
@@ -1129,7 +1127,7 @@ def main():
     app = QApplication(sys.argv)
     ex = MainWindow()
     ex.show()
-    sys.exit(app.exec_())      
+    sys.exit(app.exec())
 
 
 #run the GUI
