@@ -49,6 +49,7 @@ def find_cluster_for_index(cluster_to_indices:dict, index:int):
 #Read XSCALE.LP and extract information to plot the statistics
 def extractXSCALEStat(XSCALEFile):
     plotList = []
+    filteredList = []
     plotText = ""
     with open(XSCALEFile, 'r') as LogFile:
         for line in LogFile:
@@ -62,13 +63,25 @@ def extractXSCALEStat(XSCALEFile):
             plotList.append(line.split())
 
         #align the columns, use the max length of each column to determine the width
+        #Statistics table should have 14 columns, if not, print a warning and return
         if plotList:
-            col_widths = [max(len(row[col_idx]) for row in plotList) + 3 for col_idx in range(len(plotList[0]))]
+            #check the length of the first line, if not 14, print a warning and return
+            if len(plotList[0]) != 14:
+                print(f"{colors.RED}Warning: The statistics table may not have 14 columns, it has {len(plotList[0])} columns\nUse this column number to align the table{colors.ENDC}")
+                columnNum = len(plotList[0])
+            else:
+                columnNum = 14
             for line in plotList:
+                if len(line) != columnNum:
+                    print(f"{colors.RED}Warning: The line {line} does not have {columnNum} elements\nit has {len(line)} elements and will be skipped, merged dataset has issues at this resolution{colors.ENDC}")
+                else:
+                    filteredList.append(line)
+            col_widths = [max(len(row[col_idx]) for row in filteredList) + 3 for col_idx in range(len(filteredList[0]))]
+            for line in filteredList:
                 aligned_line = "".join(f"{token:>{col_widths[i]}}" for i, token in enumerate(line))
                 plotText += f"{aligned_line}\n"
     
-    return plotList, plotText
+    return filteredList, plotText
 
 
 #function to check the indices if correct with the data number in the label list, to avoid any mismatch between the two
