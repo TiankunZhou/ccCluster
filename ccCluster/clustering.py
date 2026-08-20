@@ -1,7 +1,8 @@
 from __future__ import print_function
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 2015-2019"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
 __version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
@@ -9,10 +10,10 @@ __email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-
 from scipy.cluster import hierarchy
 #import scipy
 import matplotlib as mpl
+from matplotlib.lines import Line2D
 from matplotlib.figure import Figure
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -313,6 +314,7 @@ class Clustering():
     def SaveXscalePlot(self, ProcessDir:str, res, value, title:str, fileName:str):
         statsPlot = Figure()
         Ax = statsPlot.add_subplot(111)
+        statsPlot.set_size_inches(16, 9)
         plotDataX= []
         plotDataY= []
         plotList, _ = extractXSCALEStat(f"{ProcessDir}/XSCALE.LP")
@@ -331,6 +333,12 @@ class Clustering():
             plotDataY.append(float(line[value].strip('*').strip('%')))
         Ax.plot(plotDataX, plotDataY, 'r-^')
 
+        #Set x and y labels, as well as the title
+        Ax.set_xlabel("Resolution (Å)", fontsize=12, fontweight='bold', color='black')
+        y_label = title.split(" vs ")[0]
+        Ax.set_ylabel(y_label, fontsize=12, fontweight='bold', rotation=90, labelpad=20, color='black')
+        Ax.set_title(title)
+
         Ax.set_xlim(LowestRes, HighestRes)
         Ax.set_title(title)
 
@@ -339,7 +347,7 @@ class Clustering():
         PlotFile.parent.mkdir(parents=True, exist_ok=True)
 
         #Save the plot
-        statsPlot.savefig(PlotFile, dpi=300)
+        statsPlot.savefig(PlotFile, bbox_inches="tight", dpi=300)
         plt.close(statsPlot)
 
 
@@ -348,7 +356,14 @@ class Clustering():
     #!!!! Will need to define the processes to run externally
     #renaming function! Edit the calls in ccCluster accordingly
     def prepareXSCALE(self, anomFlag, thr, clusterList:list=None, **kwargs):
-        FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance') #takes threshold here to clustter the files
+        #check if thr is or can be converted to float, if not, print a warning and return
+        try:
+            threshold = round(float(thr), 2)
+        except ValueError:
+            print(f"{colors.RED}Error: Threshold value {thr} is not a valid float. Please check the input.{colors.ENDC}")
+            return False, None
+
+        FlatC = hierarchy.fcluster(self.Tree, threshold, criterion='distance') #takes threshold here to clustter the files
         print(f"FlatC is: {FlatC}")
         counter=collections.Counter(FlatC)
         print(f"counter is: {counter}")
@@ -374,7 +389,7 @@ class Clustering():
 
         #Setup running directory
         clusterStr = "n".join(str(x) for x in self.SelectedCluster)
-        processing_dir_XSCALE = f"{self.RunDir}/cc_Cluster_{round(float(thr), 2)}_{clusterStr}_{anomFlag}"
+        processing_dir_XSCALE = f"{self.RunDir}/cc_Cluster_{threshold}_{clusterStr}_{anomFlag}"
         XSCALE_file = f"{processing_dir_XSCALE}/XSCALE.INP"
         
         #check working dir
@@ -418,6 +433,13 @@ class Clustering():
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')
         counter=collections.Counter(FlatC)
 
+        #check if thr is or can be converted to float, if not, print a warning and return
+        try:
+            threshold = round(float(thr), 2)
+        except ValueError:
+            print(f"{colors.RED}Error: Threshold value {thr} is not a valid float. Please check the input.{colors.ENDC}")
+            return False, None
+
         #set up selected cluster for merging
         if clusterList == None:
             self.SelectedCluster = [max(counter.items(), key=operator.itemgetter(1))[0]] #returns one item (group number) as list
@@ -440,7 +462,7 @@ class Clustering():
         #Check whether folder/file exists, and prepare it if not
         #Setup running folder
         clusterStr = "n".join(str(x) for x in self.SelectedCluster)
-        processing_dir_Pointless = f"{self.RunDir}/cc_Cluster_{round(float(thr), 2)}_{clusterStr}_{anomFlag}"
+        processing_dir_Pointless = f"{self.RunDir}/cc_Cluster_{threshold}_{clusterStr}_{anomFlag}"
         Pointless_file = f"{processing_dir_Pointless}/launch_pointless.sh"
         if os.path.isdir(processing_dir_Pointless):
             print(f"Processing folder exists, checking content: {processing_dir_Pointless}")
@@ -472,15 +494,23 @@ class Clustering():
         abs_run_dir = os.path.abspath(run_dir)
         xscale_file = f"{abs_run_dir}/XSCALE.INP"
 
+        #threshold should be a float, check it just in case
+        try:
+            threshold = round(float(thr), 2)
+        except ValueError:
+            print(f"{colors.RED}Error: Threshold value {thr} is not a valid float. Please check the input.{colors.ENDC}")
+            return
+
         if os.path.isdir(abs_run_dir):
             if os.path.isfile(xscale_file):
                 #self.createDendrogram(thr)
-                X = hierarchy.dendrogram(self.Tree, color_threshold=float(thr))
+                X = hierarchy.dendrogram(self.Tree, color_threshold=threshold)
+                plt.gcf().set_size_inches(16, 9)
 
                 #try to match the color to cluster number using count
                 #As they contains same amount od datasets
                 #get the FlatC with the same threshold
-                FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')
+                FlatC = hierarchy.fcluster(self.Tree, threshold, criterion='distance')
                 cluster_counts = collections.Counter(FlatC)
                 color_counts = collections.Counter(X['leaves_color_list'])
 
@@ -493,8 +523,8 @@ class Clustering():
                 filtered_clusters = {cluster: count for cluster, count in cluster_counts.items() if count > 1}
 
                 #Sort by count
-                sorted_clusters = sorted(filtered_clusters.items(), key=lambda x: x[1])
-                sorted_colors = sorted(color_counts.items(), key=lambda x: x[1])
+                sorted_clusters = sorted(filtered_clusters.items(), key=lambda x: x[1], reverse=True)
+                sorted_colors = sorted(color_counts.items(), key=lambda x: x[1], reverse=True)
                 print(f"sorted cluster: {sorted_clusters}")
                 print(f"sorted color: {sorted_colors}")
 
@@ -505,16 +535,26 @@ class Clustering():
                         cluster_to_color[cluster] = color
                     else:
                         print(f"Warning: Count mismatch! Cluster {cluster} has {cluster_count}, Color {color} has {color_count}")
+                        cluster_to_color[cluster] = color
 
                 #Create legend using matched clusters
                 legend_handles = []
+                
+                #add x and y labels, as well as the threshold line
+                plt.xlabel("Dateset numbers", fontsize=12, fontweight='bold', color='black')
+                plt.ylabel("Correlation coefficients", fontsize=12, fontweight='bold', rotation=90, labelpad=20, color='black')
+                plt.axhline(y=threshold, color='grey', linestyle='--', alpha=0.5, linewidth=2)
+                threshold_handle = Line2D([0], [0], color='grey', linestyle='--', alpha=1, linewidth=2, label=f'$\\mathbf{{Thresh:\\ {threshold}}}$')
+                legend_handles.append(threshold_handle)
+    
+                #match cluster to color and add to legend
                 for cluster in sorted(cluster_to_color.keys()):
                     color = cluster_to_color[cluster]
                     legend_handles.append(mpatches.Patch(color=color, label=f"$\\mathbf{{Cluster\\ {cluster}}}$ :\n{cluster_counts[cluster]} datasets"))
 
                 #Add legend
-                plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
-                            borderaxespad=0, fontsize="small", handleheight=3, handlelength=2,
+                legend = plt.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
+                            borderaxespad=0, fontsize="small", handleheight=3, handlelength=3,
                             title_fontsize="medium")
 
                 #Check if gallery folder exists, if not create it, we need to save the dendrogram in the gallery folder for data porte
@@ -522,7 +562,7 @@ class Clustering():
                 Dendrogramfile.parent.mkdir(parents=True, exist_ok=True)
 
                 #save dendrogram with legend
-                plt.savefig(Dendrogramfile, bbox_inches="tight", dpi=300)
+                plt.savefig(Dendrogramfile, bbox_inches="tight", dpi=300, bbox_extra_artists=[legend], pad_inches=0.3)
                 plt.close()
 
                 #run XSCALE in the pre-determined folders, not self.Rundir ().

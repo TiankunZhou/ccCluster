@@ -1,7 +1,8 @@
 from __future__ import print_function, absolute_import
-__author__ = "Gianluca Santoni & Tiankun Zhou"
+
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
 __version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
@@ -16,6 +17,7 @@ from .textSummary import generateLogSummary
 #a class to generate the results widget.
 #will be used as a tab in the main window
 
+#not used anymore
 class resultsSummary(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)

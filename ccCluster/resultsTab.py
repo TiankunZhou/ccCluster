@@ -1,8 +1,8 @@
 from __future__ import print_function
 
-__author__ = "Gianluca Santoni & Tiankun Zhou"
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
 __version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
@@ -14,6 +14,7 @@ from PySide6 import QtCore, QtWidgets
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qtagg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.lines import Line2D
 from pathlib import Path
 from scipy.cluster import hierarchy
 from .clustering import extractXSCALEStat, checkIndices, find_cluster_for_index, colors
@@ -98,7 +99,13 @@ class SinglePlotTab(QtWidgets.QWidget):
             plotDataY.append(float(line[value].strip('*').strip('%')))
         self.Ax.plot(plotDataX, plotDataY, 'r-^')
         self.Ax.set_xlim(LowestRes, HighestRes)
+        #X and y labels
+        self.Ax.set_xlabel("Resolution (Å)", fontsize=12, fontweight='bold', color='black')
+        y_label = title.split(" vs ")[0]
+        self.Ax.set_ylabel(y_label, fontsize=12, fontweight='bold', rotation=90, labelpad=20, color='black')
         self.Ax.set_title(title)
+
+        self.statsPlot.tight_layout()
         self.statsCanvas.draw()
 
 
@@ -193,7 +200,12 @@ class MultiPlotTab(QtWidgets.QWidget):
             #add figure legend with the name of the processed directory
             line, = self.Ax.plot(plotDataX, plotDataY, '-^', label=Path(ProcessedDir).name)
 
-            legend_handles.append(line)
+        #X and y labels
+        self.Ax.set_xlabel("Resolution (Å)", fontsize=12, fontweight='bold', color='black')
+        y_label = title.split(" vs ")[0]
+        self.Ax.set_ylabel(y_label, fontsize=12, fontweight='bold', rotation=90, labelpad=20, color='black')
+
+        legend_handles.append(line)
 
         self.Ax.set_xlim(max(LowestResList), min(HighestResList))
         self.Ax.set_title(title)
@@ -375,16 +387,26 @@ class PrePlotDendrogram(QtWidgets.QWidget):
 
         #Create legend using matched clusters
         legend_handles = []
+
+        #add x and y labels, as well as the threshold line
+        self.Ax.set_xlabel("Dateset numbers", fontsize=12, fontweight='bold', color='black')
+        self.Ax.set_ylabel("Correlation coefficients", fontsize=12, fontweight='bold', rotation=90, labelpad=20, color='black')
+        self.Ax.axhline(y=threshold, color='grey', linestyle='--', alpha=0.5, linewidth=2)
+        threshold_handle = Line2D([0], [0], color='grey', linestyle='--', alpha=1, linewidth=2, label=f'$\\mathbf{{Thresh:\\ {threshold}}}$')
+        legend_handles.append(threshold_handle)
+
+        #match cluster to color and add to legend
         for cluster in sorted(cluster_to_color.keys()):
             color = cluster_to_color[cluster]
             legend_handles.append(mpatches.Patch(color=color, label=f"$\\mathbf{{Cluster\\ {cluster}}}$ :\n{cluster_counts[cluster]} datasets"))
 
         #Add legend
         self.Ax.legend(handles=legend_handles, loc="upper left", bbox_to_anchor=(1.02, 1),
-                    borderaxespad=0, fontsize="small", handleheight=3, handlelength=2,
+                    borderaxespad=0, fontsize="small", handleheight=3, handlelength=3,
                     title_fontsize="medium")
 
         self.dendroPlot.tight_layout()
+
         if len(sorted_clusters) >= 10:
             self.dendroTitle.setText(f"<html><span style='color: red; font-weight: bold; font-size: 14px;'>Warning: Colors may not match clusters due to large number of clusters, please check cluster content tab</span><br>\
                                     <span style='font-weight: bold; font-size: 14px;'>Dendrogram with threshold: <span style='font-weight: bold;'>{threshold}</span>, the largest cluster is cluster \

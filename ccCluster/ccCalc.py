@@ -1,9 +1,9 @@
 #! /usr/bin/env libtbx.python
 from __future__ import print_function, absolute_import 
 
-__author__ = "Gianluca Santoni & Tiankun Zhou"
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
 __version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
@@ -118,10 +118,10 @@ class ccCalc():
         return gen1.__next__(), gen2.__next__(),sqrt(1.0001-cc**2)
 
 
-    def cellPrint( arglist):
-        HKLarrays
-        Array1 = HKLarrays[arglist[0]]
-        Array2 =HKLarrays[arglist[1]]
+    def cellPrint(self, arglist):
+        #HKLarrays #What is this?
+        Array1 = self.Arrays[arglist[0]]
+        Array2 = self.Arrays[arglist[1]]
 
         gen1 = (i for i,F in enumerate(self.argList) if F == arglist[0])
         gen2 = (i for i,F in enumerate(self.argList) if F == arglist[1])

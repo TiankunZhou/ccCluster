@@ -1,9 +1,9 @@
 #! /usr/bin/env python3
 from __future__ import print_function, absolute_import
 
-__author__ = "Gianluca Santoni & Tiankun Zhou"
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
 __copyright__ = "Copyright 2015-2026"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
 __version__ = "2.0"
 __maintainer__ = "Tiankun Zhou"
@@ -372,7 +372,7 @@ class tab_ccCluster(QWidget):
         self.ccClusterStatusBarTitle.setStyleSheet("color: black; font-weight: bold; font-size: 12px;")
         self.ccClusterStatusBar = QtWidgets.QLineEdit()
         self.ccClusterStatusBar.setReadOnly(True)
-        self.update_ccClusterStatusBar("ready to work")
+        self.update_ccClusterStatusBar("ready to work", "GREEN")
         self.RunccCluster = QtWidgets.QPushButton("Run ccCluster")
         self.RunccCluster.setFixedSize(200, 50)
         self.RunccCluster.clicked.connect(self.submit_ccCluster)
@@ -467,18 +467,20 @@ class tab_ccCluster(QWidget):
             self.ccClusterLogPath_text.setText(f"ccClusterLog.txt not found in {self.realTimeUpdate.shareWorkDir}. Please generate one or select a different path")
 
 
-    #update ccCluster bar:
-    def update_ccClusterStatusBar(self, status:str):
-        print(f"{status}")
+    #update ccCluster bar, color need to be a string and capital, e.g. "RED", "GREEN", "BLUE"
+    def update_ccClusterStatusBar(self, status:str, color:str=None):
+        if color is None:
+            print(f"{status}")
+        else:
+            print(f"{getattr(colors, color)}{status}{colors.ENDC}")
         self.ccClusterStatusBar.setText(f"{status}")
-        #self.ccCallog_status.setStyleSheet("color: green; font-weight: bold")
 
     
     #auto define threshold
     def getAutoThreshold(self):
         CC, _, _, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         if CC is None:
-            self.update_ccClusterStatusBar(status_text)
+            self.update_ccClusterStatusBar(status_text, "RED")
         else:
             Threshold = CC.thrEstimation()
             self.ShowThreshold.setText(str(Threshold))
@@ -490,7 +492,7 @@ class tab_ccCluster(QWidget):
     def getLargestGroup(self):
         CC, _, _, status_text= self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
         if CC is None:
-            self.update_ccClusterStatusBar(status_text)
+            self.update_ccClusterStatusBar(status_text, "RED")
         else:
             #remove white space and check if the threshold is a valid number
             ThresholdValue = self.ShowThreshold.text().strip()
@@ -501,19 +503,30 @@ class tab_ccCluster(QWidget):
                     self.update_ccClusterStatusBar(
                                                     f"Auto Threshold is {threshold_val}, "
                                                     f"the largest cluster number is {GroupNum} "
-                                                    f"with {largestGroup}/{totalHKL} files"
+                                                    f"with {largestGroup}/{totalHKL} files",
+                                                    "GREEN"
                                                     )
                     self.ShowLargestGroup.setText(f"Largest Group: {GroupNum}; HKLs: {largestGroup}/{totalHKL}")
                 except ValueError:
-                    self.update_ccClusterStatusBar("Threshold must be a valid number (e.g., 0.5)")
+                    self.update_ccClusterStatusBar("Threshold must be a valid number (e.g., 0.5)", "RED")
             else:
-                self.update_ccClusterStatusBar("Please input a threshold value")
+                self.update_ccClusterStatusBar("Please input a threshold value", "RED")
 
 
     #submit ccCluster job
     def submit_ccCluster(self):
         CC, Tree, etiquets, status_text = self.realTimeUpdate.setupCC(self.ccClusterLogPath_text.text())
-        threshold = self.ShowThreshold.text()
+
+        #check if threshold exists and is a valid number
+        if not self.ShowThreshold.text().strip():
+            threshold = CC.thrEstimation()
+            self.update_ccClusterStatusBar(f"threshold is empty, will use auto threshold {threshold}", "RED")
+        else:
+            try:
+                threshold = round(float(self.ShowThreshold.text().strip()), 2)
+            except ValueError:
+                threshold = CC.thrEstimation()
+                self.update_ccClusterStatusBar(f"Threshold is not a valid number, will use auto threshold {threshold}", "RED")
 
         #pass selected group as a str with space:
         SelectClusterText = self.mergeGroup.text().replace(',', ' ').strip()
@@ -528,7 +541,7 @@ class tab_ccCluster(QWidget):
                 SelectedCluster = None
 
         if CC is None:
-            self.update_ccClusterStatusBar(status_text)
+            self.update_ccClusterStatusBar(status_text, "RED")
         else:
             #check file type
             fileType = CC.inputType()
@@ -547,7 +560,7 @@ class tab_ccCluster(QWidget):
                 else:
                     xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster)
                 if xscale_checker == True:
-                    self.update_ccClusterStatusBar(f"Running XSCALE job in {xscale_path}")
+                    self.update_ccClusterStatusBar(f"Running XSCALE job in {xscale_path}", "GREEN")
                     CC.scaleAndMerge(anomlous, threshold, xscale_path)
                     #get json from XSCALE
                     CC.flatClusterPrinter(threshold, etiquets, xscale_path)
@@ -555,31 +568,31 @@ class tab_ccCluster(QWidget):
                 #prepare and run Pointless
                 pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=SelectedCluster)
                 if pointless_checker == True:
-                    self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}")
+                    self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}", "GREEN")
                     CC.pointlessRun(anomlous, threshold, pointless_path)
                     #prepare and run aimless
-                    self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient")
+                    self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient", "GREEN")
                     CC.aimlessRun(anomlous, threshold, pointless_path)
 
                 #update result
                 self.UpdateResultAndSyncTabs()
-                self.ccClusterStatusBar.setText(f"ccCluster job finished, please check the result in {pointless_path}")
+                self.update_ccClusterStatusBar(f"ccCluster job finished, please check the result in {pointless_path}", "GREEN")
 
             #CC.passOInfoToGA(threshold, etiquets, anomlous)
             elif fileType=="mtz":
                 #prepare and run Pointless
                 pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=SelectedCluster)
                 if pointless_checker == True:
-                    self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}")
+                    self.update_ccClusterStatusBar(f"Running Pointless job in {pointless_path}", "GREEN")
                     CC.pointlessRun(anomlous, threshold, pointless_path)
                     #prepare and run aimless
-                    self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient")
+                    self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient", "GREEN")
                     CC.aimlessRun(anomlous, threshold, pointless_path)
                     CC.flatClusterPrinter(threshold, etiquets, pointless_path)
 
-                self.ccClusterStatusBar.setText(f"No statistcs as the input file is mtz, check results in: {pointless_path}")
+                self.update_ccClusterStatusBar(f"No statistcs as the input file is mtz, check results in: {pointless_path}", "GREEN")
             else:
-                self.update_ccClusterStatusBar(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}")
+                self.update_ccClusterStatusBar(f"Unknown input file format, please check ccCluster log file: {self.ccClusterLogPath_text.text()}", "RED")
 
 
     def UpdateResultAndSyncTabs(self):
@@ -650,7 +663,7 @@ class tab_ccCluster(QWidget):
 
         #open flatCluster.json and get the merged cluster information
         if not os.path.isfile(flatClusterFile):
-            self.update_ccClusterStatusBar(f"No flatCluster.json found in {self.realTimeUpdate.shareWorkDir}, please check")
+            self.update_ccClusterStatusBar(f"No flatCluster.json found in {self.realTimeUpdate.shareWorkDir}, please check", "RED")
         else:
             with open(flatClusterFile, 'r') as f:
                 flatClusterData = json.load(f)
@@ -666,7 +679,7 @@ class tab_ccCluster(QWidget):
 
             #get the merged files from XSCALE.LP
             if not os.path.isfile(XSCALEFile):
-                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {self.realTimeUpdate.shareWorkDir}, please check")
+                self.update_ccClusterStatusBar(f"No XSCALE.LP found in {self.realTimeUpdate.shareWorkDir}, please check", "RED")
             else:
                 XSCALEPathList = []
                 with open(XSCALEFile, 'r') as f:
@@ -697,7 +710,7 @@ class tab_ccCluster(QWidget):
 
                 CheckJsonLP = is_merged_cluster()
                 if not CheckJsonLP:
-                    self.update_ccClusterStatusBar(f"Warning: The merged cluster in flatCluster.json does not match the XSCALE.LP input files, please check")
+                    self.update_ccClusterStatusBar(f"Warning: The merged cluster in flatCluster.json does not match the XSCALE.LP input files, please check", "RED")
                 else:
                     #add the cluster content to the text area with the selected clusters highlighted in blue
                     content = ""
@@ -758,11 +771,11 @@ class tab_ccCluster(QWidget):
 
         #check if the dendrogram.png and XSCALE.LP exist in the result folder
         if not os.path.isfile(dendrogram_path):
-            self.update_ccClusterStatusBar(f"No Dendrogram.png found in {result_folder}, please check")
+            self.update_ccClusterStatusBar(f"No Dendrogram.png found in {result_folder}, please check", "RED")
             return
 
         if not os.path.isfile(xscale_path):
-            self.update_ccClusterStatusBar(f"No XSCALE.LP found in {result_folder}, please check")
+            self.update_ccClusterStatusBar(f"No XSCALE.LP found in {result_folder}, please check", "RED")
             return
 
         #set up the tab for Dendrogram and statistics
@@ -831,19 +844,19 @@ class tab_ccCluster(QWidget):
         for folder_name in tabs_to_add:
             resultPlotTab  = self.CreateResultTabs(folder_name)
             if resultPlotTab is not None:
-                self.update_ccClusterStatusBar(f"Adding result tab for {folder_name}")
+                self.update_ccClusterStatusBar(f"Adding result tab for {folder_name}", "GREEN")
                 self.PlottingTabWidget.addTab(resultPlotTab, folder_name)
-                self.update_ccClusterStatusBar(f"Added result tab for {folder_name}")
+                self.update_ccClusterStatusBar(f"Added result tab for {folder_name}", "GREEN")
 
         #remove ResultTabs
         for folder_name in tabs_to_remove:
-            self.update_ccClusterStatusBar(f"Removing result tab for {folder_name}")
+            self.update_ccClusterStatusBar(f"Removing result tab for {folder_name}", "RED")
             self.RemoveResultTabs(folder_name)
-            self.update_ccClusterStatusBar(f"Removed result tab for {folder_name}")
+            self.update_ccClusterStatusBar(f"Removed result tab for {folder_name}", "RED")
 
         #update log
         status_msg = f"Synced tabs: +{len(tabs_to_add)} added, -{len(tabs_to_remove)} removed"
-        self.update_ccClusterStatusBar(status_msg)
+        self.update_ccClusterStatusBar(status_msg, "GREEN")
         print(f"workdir: {self.realTimeUpdate.shareWorkDir}")
 
 
@@ -861,7 +874,7 @@ class tab_ccCluster(QWidget):
         
         #setup tabs for each merged result
         if not self.realTimeUpdate.MergeResult:
-            self.update_ccClusterStatusBar(f"No merged result found in {self.realTimeUpdate.shareWorkDir}, please check")
+            self.update_ccClusterStatusBar(f"No merged result found in {self.realTimeUpdate.shareWorkDir}, please check", "RED")
         else:
             self.SyncResultTabs()
 
