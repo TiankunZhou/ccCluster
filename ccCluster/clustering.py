@@ -570,8 +570,10 @@ class Clustering():
                 subprocess.run('xscale_par',cwd=abs_run_dir)
 
                 #save the XSCALE.LP statistics plot in the gallery folder for data porte
-                self.SaveXscalePlot(abs_run_dir, 0, 4, "CC_vs_Res", "CC_vs_Res")
-                self.SaveXscalePlot(abs_run_dir, 0, 10, "comp_vs_Res", "comp_vs_Res")
+                #plot from XSCLE.LP, position 0 is resolution, 4 is COMPLETENESS
+                #5 is R factor observed, 8 is <I/sigma>, 10 is CC1/2, 12 is SigAno
+                self.SaveXscalePlot(abs_run_dir, 0, 10, "CC_vs_Res", "CC_vs_Res")
+                self.SaveXscalePlot(abs_run_dir, 0, 4, "comp_vs_Res", "comp_vs_Res")
                 self.SaveXscalePlot(abs_run_dir, 0, 5, "Robs_vs_Res", "Robs_vs_Res")
                 self.SaveXscalePlot(abs_run_dir, 0, 8, "<I/\u03C3I>_vs_Res", "I_SigmaI_vs_Res")
                 self.SaveXscalePlot(abs_run_dir, 0, 12, "Sig_Ano_vs_Res", "Sig_Ano_vs_Res")

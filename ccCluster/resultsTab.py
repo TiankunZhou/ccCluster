@@ -48,13 +48,15 @@ class SinglePlotTab(QtWidgets.QWidget):
         self.buttonBar = QtWidgets.QWidget()
         self.barLayout= QtWidgets.QHBoxLayout(self.buttonBar)
 
+        #plot from XSCLE.LP, position 0 is resolution, 4 is COMPLETENESS
+        #5 is R factor observed, 8 is <I/sigma>, 10 is CC1/2, 12 is SigAno
         self.ccVsR= QtWidgets.QPushButton()
         self.ccVsR.setText("CC. vs Res")
-        self.ccVsR.clicked.connect(lambda:self.plotStats(0, 4, "CC. vs Res"))
+        self.ccVsR.clicked.connect(lambda:self.plotStats(0, 10, "CC. vs Res"))
 
         self.compVsR= QtWidgets.QPushButton()
         self.compVsR.setText("comp vs Res")
-        self.compVsR.clicked.connect(lambda:self.plotStats(0, 10, "comp vs Res"))
+        self.compVsR.clicked.connect(lambda:self.plotStats(0, 4, "comp vs Res"))
 
         self.RobsVsR= QtWidgets.QPushButton()
         self.RobsVsR.setText("Robs vs Res")
@@ -132,11 +134,11 @@ class MultiPlotTab(QtWidgets.QWidget):
 
         self.ccVsR= QtWidgets.QPushButton()
         self.ccVsR.setText("CC. vs Res")
-        self.ccVsR.clicked.connect(lambda:self.MultiPlotStats(0, 4, "CC. vs Res Multi"))
+        self.ccVsR.clicked.connect(lambda:self.MultiPlotStats(0, 10, "CC. vs Res Multi"))
 
         self.compVsR= QtWidgets.QPushButton()
         self.compVsR.setText("comp vs Res")
-        self.compVsR.clicked.connect(lambda:self.MultiPlotStats(0, 10, "comp vs Res Multi"))
+        self.compVsR.clicked.connect(lambda:self.MultiPlotStats(0, 4, "comp vs Res Multi"))
 
         self.RobsVsR= QtWidgets.QPushButton()
         self.RobsVsR.setText("Robs vs Res")
