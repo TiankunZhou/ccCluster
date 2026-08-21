@@ -1,21 +1,23 @@
 from __future__ import print_function, absolute_import
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 20150-2019"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
-__version__ = "1.0"
-__maintainer__ = "Gianluca Santoni"
-__email__ = "gianluca.santoni@esrf.fr"
+__version__ = "2.0"
+__maintainer__ = "Tiankun Zhou"
+__email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
-from PyQt5 import QtGui, QtCore, QtWidgets
+from PySide6 import QtWidgets
 import os, sys
 
 from .textSummary import generateLogSummary
 #a class to generate the results widget.
 #will be used as a tab in the main window
 
+#not used anymore
 class resultsSummary(QtWidgets.QWidget):
     def __init__(self):
         QtWidgets.QWidget.__init__(self)
@@ -43,7 +45,7 @@ def main():
     app = QtWidgets.QApplication(sys.argv)
     ex = resultsSummary()
     ex.show()
-    sys.exit(app.exec_())      
+    sys.exit(app.exec())
 
 if __name__== '__main__':
     main()

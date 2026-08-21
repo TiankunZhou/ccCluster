@@ -2,6 +2,7 @@ from __future__ import print_function
 import os, sys
 
 
+#not used anymore
 class generateLogSummary():
     def __init__(self, clustering):
         self.Workdir = os.getcwd()

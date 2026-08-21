@@ -3,12 +3,9 @@ from __future__ import print_function
 
 from iotbx.reflection_file_reader import any_reflection_file
 from iotbx.xds.integrate_hkl import reader
-import cctbx.miller as mil
 from math import *
-import collections
 import itertools
 import argparse
-import struct
 import os
 import multiprocessing
 from pathos.multiprocessing import ProcessingPool as Pool

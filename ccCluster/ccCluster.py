@@ -1,52 +1,26 @@
 #! /usr/bin/env python3
 from __future__ import print_function, absolute_import
 
-__author__ = "Gianluca Santoni"
-__copyright__ = "Copyright 20150-2019"
-__credits__ = ["Gianluca Santoni, Alexander Popov"]
+__author__ = "Rita Giordano, Gianluca Santoni, Tiankun Zhou"
+__copyright__ = "Copyright 2015-2026"
+__credits__ = ["Rita Giordano, Gianluca Santoni, Tiankun Zhou, Alexander Popov"]
 __license__ = ""
-__version__ = "1.0"
-__maintainer__ = "Gianluca Santoni"
-__email__ = "gianluca.santoni@esrf.fr"
+__version__ = "2.0"
+__maintainer__ = "Tiankun Zhou"
+__email__ = "tiankun.zhou@esrf.fr"
 __status__ = "Beta"
 
 
 
-
-
-import matplotlib.pyplot as plt
-import sys
 import os
-import subprocess
-
-#import ccCluster classes
-
 from .clustering import Clustering
-
-
 # Insert parse  to change the file path from command line
-
 import argparse
+import textwrap
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-i","--DISTfile", dest="DISTfile", default=None, help="Distance file from ccCalc module")
-#parser.add_argument("-f", dest="structures", default= None ,  type=str, nargs='+', help='The list of refined structures to merge')
-#argument not currently in use, commented out
-#parser.add_argument("-o","--outname", dest="outname", default='Dendrogram', help="output dendogram file name")
-parser.add_argument("-t", "--threshold", dest="threshold", help="Distance threshold for clustering")
-#parser.add_argument("-s", "--shuffle", dest="shuffle",action="store_true",default=False, help="Activates the XSCALE Shuffle function")
-parser.add_argument("-p", "--process",action="store_true", dest="shell", default=False, help="Launch program in shell mode. Need to specify the threshold value")
-parser.add_argument("-c", "--count",action="store_true", dest="count", default=False, help="Counts datasets in the biggest cluster and exit")
-parser.add_argument("-e", "--estimation",action="store_true", dest="est", default=False, help="Tries to guess an optimal threshold value")
-#parser.add_argument("-m", dest="minimal", default= False , action="store_true" , help='Gives minimal threshold for completeness')
-
-
-#parser.print_help()
-args= parser.parse_args()
 
 #Startup message
-
-print("""ccCluster - HCA for protein crystallography 
+print(r"""ccCluster - HCA for protein crystallography
 G. Santoni and A. Popov, 2015-2019
               v .   ._, |_  .,
            `-._\/  .  \ /    |/_
@@ -63,64 +37,188 @@ G. Santoni and A. Popov, 2015-2019
 """)
 
 
-#Suggest to run ccCalc if no correlation file is provided
-#if args.DISTfile is None:
-#    print('no inputs specified, please run ccCalc before')
-#else:
-#    correlationFile=args.DISTfile
+#How to use
+"""
+e.g.
+to run the program in shell mode, use -p to process the data
+ccCluster -p -i ccClusterlog.txt -o output_dir -t threshold -ano -ref reference_HKL -clu cluster1 cluster2 cluster3 ...
+or
+ccCluster -p -i ccClusterlog.txt -o output_dir -t threshold -ref reference_HKL -clu cluster1 cluster2 cluster3 ...
+
+to check the multiplicity of the biggest cluster and exit, use -c
+ccCluster -c -i ccClusterlog.txt
+
+to estimate the threshold value and exit, use -e
+ccCluster -e -i ccClusterlog.txt
+
+"""
 
 
-##
-#Call to ccCalc if no distances found but files listed
+def process_args():
+    input_args = argparse.ArgumentParser()
 
-if args.DISTfile is None: 
-    if args.structures is None:
-        print('no inputs specified, please run ccCalc before')
+    input_args.add_argument("-i", "--dist_file",
+    type=str,
+    help="Distance file from ccCalc module"
+    )
+
+    input_args.add_argument("-o", "--output_dir",
+    type = str,
+    help = "output directory, default is pwd.",
+    )
+
+    input_args.add_argument("-t", "--threshold",
+    type = str,
+    help = "Distance threshold for clustering",
+    )
+
+    input_args.add_argument("-ano", "--anomalous_scattering",
+    action="store_true",
+    help = "Whether it is anomalous data, default is False",
+    )
+
+    input_args.add_argument("-p", "--process",
+    action="store_true",
+    default=False,
+    help="Launch program in shell mode. Need to specify the threshold value"
+    )
+
+    input_args.add_argument("-c", "--count",
+    action="store_true",
+    default=False,
+    help="Counts datasets in the biggest cluster and exit"
+    )
+
+    input_args.add_argument("-e", "--estimation",
+    action="store_true",
+    default=False,
+    help="Tries to guess an optimal threshold value"
+    )
+
+    input_args.add_argument("-ref", "--reference_HKL",
+    type = str,
+    help="Give an optional reference HKL file for XSCALE merging, recommend to give absolute path"
+    )
+
+    input_args.add_argument("-clu", "--clusters",
+    nargs='*',
+    type=int,
+    help="pass Selected cluster number as a list: e.g. -clu 1 5 3 2"
+    )
+
+    #save args
+    args = input_args.parse_args()
+
+    #set working folder
+    if args.output_dir == None:
+        args.output_dir = os.getcwd()
+
+    #setup selected cluster:
+    if args.clusters is None or len(args.clusters) == 0:
+        args.clusters == None
+
+    #check whether processing type is there
+    if not args.process and not args.count and not args.estimation:
+        print(textwrap.dedent(f"""\
+                                    Did not select how to process the data
+                                    use -p for processing
+                                    -c to calculate the biggest cluster
+                                    and -e to estimate threshold"""
+                            ))
         exit()
-    else:
-        #Run ccCalc with initial args list
-        #hklin = " ".join(str(x) for x in args.structures)
-        #C = subprocess.Popen('ccCalc -f %s'%(hklin), cwd=os.getcwd())
-        #C = subprocess.Popen('/opt/pxsoft/bin/ccCalc', '-h',cwd=os.getcwd())
-        correlationFile=('ccCluster_log.txt')
-else:
-    correlationFile=args.DISTfile
+
+    return args
 
 
-
-CC = Clustering(correlationFile)
-Tree = CC.avgTree()
-etiquets=CC.createLabels()
-threshold = CC.thrEstimation()
-fileType = CC.inputType()
-
-# #Main part of the program
-# #with the different options, we can chose 
-# # to process through the shell,
-# #count the multiplicity of the highest cluster
-
-
+#Main part of the program
+#with the different options, we can chose
+# to process through the shell,
+#count the multiplicity of the highest cluster
 def main():
-    if args.threshold:
-        threshold = args.threshold
+    args = process_args()
+
+    #set up abs path for ccClusteringlog.txt
+    if os.path.isfile(args.dist_file):
+        correlationFile = os.path.abspath(args.dist_file)
+        print(f"abs_path_list: {correlationFile}")
     else:
-        threshold= CC.thrEstimation()
-    if args.shell:
+        print(f"distance file does not exist, please check: {args.dist_file}")
+
+    #set up anomalous
+    if args.anomalous_scattering == False:
+        anomlous = "no_ano"
+    else:
+        anomlous = "ano"
+
+    #create working dir
+    workdir = os.path.abspath(f"{args.output_dir}")
+    print(f"ccCluster output directory would be : {workdir}")
+    if os.path.isdir(workdir):
+        print(f"Output folder exists: {workdir}")
+        #print(f"moving into output folder")
+        #os.chdir(workdir)
+    else:
+        print(f"Creating output folder: {workdir}")
+        os.makedirs(workdir)
+        #print(f"moving into output folder")
+        #os.chdir(workdir)
+
+    #set up the job
+    CC = Clustering(correlationFile, workdir)
+    Tree = CC.avgTree()
+    etiquets = CC.createLabels()
+
+    #check threshold
+    if args.threshold == None:
+        threshold = CC.thrEstimation()
+    else:
+        threshold = args.threshold
+
+    #check file type
+    if args.process:
         CC.checkMultiplicity(threshold)
+        fileType = CC.inputType()
         if fileType=="HKL":
-            CC.prepareXSCALE('ano',threshold)
-            CC.scaleAndMerge('ano',threshold)
-            CC.flatClusterPrinter(threshold, etiquets, 'ano')
-            CC.passOInfoToGA(threshold, etiquets, 'ano')
+            #prepare and run XSCALE job
+            if args.reference_HKL == None:
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters)
+            elif os.path.isfile(args.reference_HKL):
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters, refHKL=args.reference_HKL)
+            else:
+                xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters)
+            if xscale_checker == True:
+                CC.scaleAndMerge(anomlous, threshold, xscale_path)
+                #get jason from XSCALE
+                CC.flatClusterPrinter(threshold, etiquets, xscale_path)
+
+            #prepare and run Pointless
+            pointless_checker, pointless_path = CC.preparePointless(anomlous, threshold, clusterList=args.clusters)
+            if pointless_checker == True:
+                CC.pointlessRun(anomlous, threshold, pointless_path)
+                #prepare and run aimless
+                CC.aimlessRun(anomlous, threshold, pointless_path)
+
+        #CC.passOInfoToGA(threshold, etiquets, anomlous)
         elif fileType=="mtz":
-            CC.preparePointless('ano',threshold)
-            CC.pointlessRun('ano',threshold)
-            CC.flatClusterPrinter(threshold, etiquets, 'ano')
-        else:            print("Unknown input file format.")
+            #prepare and run Pointless
+            pointless_checker, pointless_path = CC.preparePointless(anomlous,threshold, clusterList=args.clusters)
+            if pointless_checker == True:
+                CC.pointlessRun(anomlous, threshold, pointless_path)
+                #prepare and run aimless
+                CC.aimlessRun(anomlous, threshold, pointless_path)
+                CC.flatClusterPrinter(threshold, etiquets, pointless_path)
+        else:
+            print(f"Unknown input file format, please check the distance file: {correlationFile}")
+
+    #check datasets in the biggest cluster and exit
     elif args.count:
         CC.checkMultiplicity(threshold)
-    elif args.est:
+
+    # check estimated threshold
+    elif args.estimation:
         a = CC.thrEstimation()
-        print(a)
-if __name__== '__main__':
+        print(f"Estimated threshold is {a}, you can input another value use -t if needed")
+
+
+if __name__== "__main__":
     main()
