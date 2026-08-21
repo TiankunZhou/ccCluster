@@ -199,13 +199,12 @@ class MultiPlotTab(QtWidgets.QWidget):
 
             #add figure legend with the name of the processed directory
             line, = self.Ax.plot(plotDataX, plotDataY, '-^', label=Path(ProcessedDir).name)
+            legend_handles.append(line)
 
         #X and y labels
         self.Ax.set_xlabel("Resolution (Å)", fontsize=12, fontweight='bold', color='black')
         y_label = title.split(" vs ")[0]
         self.Ax.set_ylabel(y_label, fontsize=12, fontweight='bold', rotation=90, labelpad=20, color='black')
-
-        legend_handles.append(line)
 
         self.Ax.set_xlim(max(LowestResList), min(HighestResList))
         self.Ax.set_title(title)
