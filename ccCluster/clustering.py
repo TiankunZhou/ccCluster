@@ -434,6 +434,81 @@ class Clustering():
 
             return True, processing_dir_XSCALE
 
+    #read the f2mtz and cad commands from xdsconv generatet F2MTZ.INP
+    def readXDSCONVLP(self, XDSCONVLP:str, outputName:str):
+        f2mtz_cmd = ""
+        cad_cmd = ""
+        cad_input = ""
+        if not os.path.isfile(XDSCONVLP):
+            print(f"{colors.RED}Error: XDSCONV log file {XDSCONVLP} does not exist.{colors.ENDC}")
+            return None, None
+        else:
+            with open(XDSCONVLP, "r") as f:
+                for line in f:
+                    if line.strip().startswith("f2mtz"):
+                        print(f"Found f2mtz command: {line.strip()}")
+                        f2mtz_cmd = line.replace("<", " ").strip().split()
+                        f2mtz_cmd.pop()  # remove the last element which is the input file
+                        break
+                for line in f:
+                    if line.strip().startswith("cad"):
+                        print(f"Found cad command: {line.strip()}")
+                        cad_cmd = line.strip().replace("<", " ").split()
+                        cad_cmd.pop()  # remove the last element which is the input file
+                        cad_cmd[-1] = outputName  # add the output file name as the last argument
+                        break
+                for line in f:
+                    print(f"Found cad command: {line.strip()}")
+                    cad_input += f"{line.strip()}\n"
+        return f2mtz_cmd, cad_cmd, cad_input
+
+    
+    #convert xscale output to mtz using xdsconv
+    def xscaleToMtz(self, XscaleHKLPath:str, run_dir:str, anomFlag:str, **kwargs):
+        abs_run_dir = os.path.abspath(run_dir)
+        if not os.path.isdir(abs_run_dir):
+            print(f"{colors.RED}Error: Run directory {abs_run_dir} does not exist.{colors.ENDC}")
+            return
+
+        xdsconv_file = os.path.join(abs_run_dir, "XDSCONV.INP")
+        if os.path.isfile(xdsconv_file):
+            print(f"XDSCONV.INP already exists: {xdsconv_file}\nWill pass the XDSCONV process. Please reomve the file/folder if you want to re-run the job")
+            return
+        else:
+            if not os.path.isfile(XscaleHKLPath):
+                print(f"{colors.RED}Error: Xscale HKL file {XscaleHKLPath} does not exist.{colors.ENDC}")
+                return
+            
+            with open(xdsconv_file, 'w') as Xconv:
+                Xconv.write(f"INPUT_FILE= {XscaleHKLPath}\n")
+                Xconv.write(f"OUTPUT_FILE= tmp.hkl CCP4\n")
+                if anomFlag=='ano':
+                    Xconv.write(f"FRIEDEL\'S_LAW= FALSE\n")
+                elif anomFlag=='no_ano':
+                    Xconv.write(f"FRIEDEL\'S_LAW= TRUE\n")
+
+            print(f"Running XDSCONV with input {XscaleHKLPath}")
+            subprocess.run('xdsconv',cwd=abs_run_dir)
+
+            #make sure the necessary files exist before proceeding
+            if not os.path.isfile(os.path.join(abs_run_dir, "XDSCONV.LP")):
+                print(f"{colors.RED}Error: XDSCONV.LP not found after running xdsconv in {abs_run_dir}.{colors.ENDC}")
+                return
+            if not os.path.isfile(os.path.join(abs_run_dir, "F2MTZ.INP")):
+                print(f"{colors.RED}Error: F2MTZ.INP not found after running xdsconv in {abs_run_dir}.{colors.ENDC}")
+                return
+            
+            f2mtz_cmd, cad_cmd, cad_input = self.readXDSCONVLP(os.path.join(abs_run_dir, "XDSCONV.LP"), "xscale_scaled.mtz")
+            print(f"Extracted commands from XDSCONV.LP:\nF2MTZ: {f2mtz_cmd}\nCAD: {cad_cmd}\nCAD Input: {cad_input}")
+
+            #run the f2mtz command
+            with open(os.path.join(abs_run_dir, "F2MTZ.INP"), 'r') as f:
+                f2mtz_input = f.read()
+            subprocess.run(f2mtz_cmd, input=f2mtz_input, text=True, cwd=abs_run_dir)
+
+            #run the cad command
+            subprocess.run(cad_cmd, input=cad_input, text=True, cwd=abs_run_dir)
+        
 
     def preparePointless(self, anomFlag, thr, clusterList:list=None, **kwargs):
         FlatC = hierarchy.fcluster(self.Tree, thr, criterion='distance')
@@ -583,6 +658,16 @@ class Clustering():
                 self.SaveXscalePlot(abs_run_dir, 0, 5, "Robs_vs_Res", "Robs_vs_Res")
                 self.SaveXscalePlot(abs_run_dir, 0, 8, "<I/\u03C3I>_vs_Res", "I_SigmaI_vs_Res")
                 self.SaveXscalePlot(abs_run_dir, 0, 12, "Sig_Ano_vs_Res", "Sig_Ano_vs_Res")
+
+                #run XDSCONV to convert the XSCALE output to mtz format
+                XscaleHKLPath = os.path.join(abs_run_dir, "xscale_scaled.hkl")
+
+                #check if the XSCALE output file exists before running XDSCONV
+                if not os.path.isfile(XscaleHKLPath):
+                    print(f"{colors.RED}XSCALE output file is missing: {XscaleHKLPath}, please check the XSCALE run{colors.ENDC}")
+                    return
+                #convert the XSCALE output to mtz format using XDSCONV
+                self.xscaleToMtz(XscaleHKLPath, abs_run_dir, anomFlag)
             else:
                 print(f"ccCluster XSCALE.INP file does not exist, please check: {abs_run_dir}")
         else:
