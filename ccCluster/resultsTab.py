@@ -170,6 +170,8 @@ class MultiPlotTab(QtWidgets.QWidget):
 
         #store legends
         legend_handles = []
+        LowestResList = []
+        HighestResList = []
 
         #setup plot for each processed directory
         for ProcessedDir in self.ProcessedDirs:
@@ -183,8 +185,6 @@ class MultiPlotTab(QtWidgets.QWidget):
 
             plotDataX= []
             plotDataY= []
-            LowestResList = []
-            HighestResList = []
             
             for line in plotList:
                 #check whether x and v values are valid numbers

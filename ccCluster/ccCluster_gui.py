@@ -355,7 +355,13 @@ class tab_ccCluster(QWidget):
         self.mergeGroupLabel.setStyleSheet("color: black; font-weight: bold;;")
 
         self.mergeGroup = QtWidgets.QLineEdit()
-        self.mergeGroup.setPlaceholderText("Put the cluster to merge with space or comma, e.g. 2 3, 5,8")
+        self.mergeGroup.setPlaceholderText("Optional cluster number to merge e.g. 2 3, 5,8")
+
+        #define the resolution range for XSCALE merging, optional
+        self.resolutionRangeLabel = QtWidgets.QLabel("Resolution range for XSCALE:")
+        self.resolutionRangeLabel.setStyleSheet("color: black; font-weight: bold;;")
+        self.resolutionRange = QtWidgets.QLineEdit()
+        self.resolutionRange.setPlaceholderText("Optional, e.g. 20,1.8 or 20 1.8 or 20, 1.8")
 
         #select reference HKL file for XSCALE merging
         self.reference_HKL = QtWidgets.QLineEdit()
@@ -387,13 +393,15 @@ class tab_ccCluster(QWidget):
 
         #put AutoThreshold and show largest group together
         AutoThresholsLayout = QtWidgets.QHBoxLayout()
-        AutoThresholsLayout.addWidget(self.ShowThreshold, 2)
+        AutoThresholsLayout.addWidget(self.ShowThreshold, 4)
         AutoThresholsLayout.addWidget(self.AutoThreshols, 1)
-        AutoThresholsLayout.addWidget(self.ShowLargestGroup, 2)
+        AutoThresholsLayout.addWidget(self.ShowLargestGroup, 4)
         AutoThresholsLayout.addWidget(self.CheckLargestGroup, 1)
         AutoThresholsLayout.addWidget(self.anomBox, 1)
         AutoThresholsLayout.addWidget(self.mergeGroupLabel, 1)
-        AutoThresholsLayout.addWidget(self.mergeGroup, 3)
+        AutoThresholsLayout.addWidget(self.mergeGroup, 6)
+        AutoThresholsLayout.addWidget(self.resolutionRangeLabel, 1)
+        AutoThresholsLayout.addWidget(self.resolutionRange, 4)
 
         #put reference HKL and button together
         referenceHKLLayout = QtWidgets.QHBoxLayout()
@@ -540,6 +548,24 @@ class tab_ccCluster(QWidget):
             except ValueError:
                 SelectedCluster = None
 
+        #check if resolution range is provided and valid
+        resolutionText = self.resolutionRange.text().replace(',', ' ').strip()
+        if resolutionText:
+            if not len(resolutionText.split()) == 2:
+                self.update_ccClusterStatusBar("Resolution range must have two numbers: min max, e.g., 1.5 2.5, using default resolution from XSCALE", "RED")
+                resolutionRange = None
+            else:
+                try:
+                    resolutionRange = [float(x) for x in resolutionText.split()]
+                    if len(resolutionRange) != 2:
+                        self.update_ccClusterStatusBar("Resolution range must have two numbers: min max", "RED")
+                        resolutionRange = None
+                except ValueError:
+                    self.update_ccClusterStatusBar("Resolution range must be valid numbers", "RED")
+                    resolutionRange = None
+        else:
+            resolutionRange = None
+
         if CC is None:
             self.update_ccClusterStatusBar(status_text, "RED")
         else:
@@ -554,11 +580,11 @@ class tab_ccCluster(QWidget):
             if fileType=="HKL":
                 #prepare and run XSCALE job
                 if not self.reference_HKL.text():
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster)
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster, resolutionRange=resolutionRange)
                 elif os.path.isfile(self.reference_HKL.text()):
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster, refHKL=self.reference_HKL.text())
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster, refHKL=self.reference_HKL.text(), resolutionRange=resolutionRange)
                 else:
-                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster)
+                    xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=SelectedCluster, resolutionRange=resolutionRange)
                 if xscale_checker == True:
                     self.update_ccClusterStatusBar(f"Running XSCALE job in {xscale_path}", "GREEN")
                     CC.scaleAndMerge(anomlous, threshold, xscale_path)

@@ -423,6 +423,12 @@ class Clustering():
                 for cluster, filename in zip(FlatC, self.labelList):
                     if cluster in self.SelectedCluster:
                         Xscale.write(f"INPUT_FILE= {filename[1]}\n")
+                        if kwargs.get("resolutionRange") and len(kwargs["resolutionRange"]) == 2:
+                            Xscale.write(f"INCLUDE_RESOLUTION_RANGE= {kwargs['resolutionRange'][0]} {kwargs['resolutionRange'][1]}\n")
+                        elif kwargs.get("resolutionRange") and len(kwargs["resolutionRange"]) != 2:
+                            print(f"{colors.RED}Warning: Invalid resolution range provided: {kwargs['resolutionRange']}. It should be a list of two numbers.{colors.ENDC}")
+                        else:
+                            print(f"Resolution range not provided, skipping INCLUDE_RESOLUTION_RANGE in XSCALE.INP")
                         #Xscale.write(f"INCLUDE_RESOLUTION_RANGE= 20, 1.8\n")
                         #Xscale.write(f"MINIMUM_I/SIGMA= 0\n")
 
