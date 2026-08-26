@@ -639,12 +639,22 @@ class Clustering():
     #TBD: fix directories paths into the aimless.inp file
     #also set all the proper input values into the function call
     #path to aimless executable to be verified.
-    def aimlessRun(self, anomFlag, thr, run_dir:str):
+    def aimlessRun(self, anomFlag, thr, run_dir:str, **kwargs):
         #Get variables, maybe can just put them in the file?
         infile = "pointless_clustered.mtz"
         setname = "aimless_clustered"
-        resHigh = "1.0"
-        resLow = "60"
+        if kwargs.get("resolutionRange") and len(kwargs["resolutionRange"]) == 2:
+            resLow = str(kwargs["resolutionRange"][0])
+            resHigh = str(kwargs["resolutionRange"][1])
+        elif kwargs.get("resolutionRange") and len(kwargs["resolutionRange"]) != 2:
+            print(f"{colors.RED}Warning: Invalid resolution range provided: {kwargs['resolutionRange']}. It should be a list of two numbers.\n"
+                  f"Using default resolution range for aimless: 1.0 - 60.0{colors.ENDC}")
+            resHigh = "1.0"
+            resLow = "60"
+        else:
+            print(f"Resolution range not provided, use default for aimless: 1.0 - 60.0")
+            resHigh = "1.0"
+            resLow = "60"
         if anomFlag=='ano':
             anomflag = "ON"
         elif anomFlag=='no_ano':

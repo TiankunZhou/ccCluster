@@ -197,7 +197,7 @@ def main():
         if pointless_checker == True:
             CC.pointlessRun(anomlous, threshold, pointless_path)
             #prepare and run aimless
-            CC.aimlessRun(anomlous, threshold, pointless_path)
+            CC.aimlessRun(anomlous, threshold, pointless_path, resolutionRange=args.resolution_range)
 
         #CC.passOInfoToGA(threshold, etiquets, anomlous)
     elif fileType=="mtz":
@@ -206,7 +206,7 @@ def main():
         if pointless_checker == True:
             CC.pointlessRun(anomlous, threshold, pointless_path)
             #prepare and run aimless
-            CC.aimlessRun(anomlous, threshold, pointless_path)
+            CC.aimlessRun(anomlous, threshold, pointless_path, resolutionRange=args.resolution_range)
             CC.flatClusterPrinter(threshold, etiquets, pointless_path)
     else:
         print(f"Unknown input file format, please check the distance file: {correlationFile}")

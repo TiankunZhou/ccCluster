@@ -598,7 +598,7 @@ class tab_ccCluster(QWidget):
                     CC.pointlessRun(anomlous, threshold, pointless_path)
                     #prepare and run aimless
                     self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient", "GREEN")
-                    CC.aimlessRun(anomlous, threshold, pointless_path)
+                    CC.aimlessRun(anomlous, threshold, pointless_path, resolutionRange=resolutionRange)
 
                 #update result
                 self.UpdateResultAndSyncTabs()
@@ -613,7 +613,7 @@ class tab_ccCluster(QWidget):
                     CC.pointlessRun(anomlous, threshold, pointless_path)
                     #prepare and run aimless
                     self.update_ccClusterStatusBar(f"Running Aimless job in {pointless_path}, please be patient", "GREEN")
-                    CC.aimlessRun(anomlous, threshold, pointless_path)
+                    CC.aimlessRun(anomlous, threshold, pointless_path, resolutionRange=resolutionRange)
                     CC.flatClusterPrinter(threshold, etiquets, pointless_path)
 
                 self.update_ccClusterStatusBar(f"No statistcs as the input file is mtz, check results in: {pointless_path}", "GREEN")
