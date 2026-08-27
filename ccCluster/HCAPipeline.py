@@ -87,16 +87,22 @@ def process_args():
     help="pass Selected cluster number as a list: e.g. -clu 1 5 3 2"
     )
 
+    input_args.add_argument("-res", "--resolution_range",
+    nargs=2,
+    type=float,
+    help="Optional resolution range for XSCALE merging, provide two numbers: min max"
+    )
+
     #save args
     args = input_args.parse_args()
 
     #set working folder
-    if args.output_dir == None:
+    if args.output_dir is None:
         args.output_dir = os.getcwd()
 
     #setup selected cluster:
     if args.clusters is None or len(args.clusters) == 0:
-        args.clusters == None
+        args.clusters = None
 
     #return args    
     return args
@@ -176,11 +182,11 @@ def main():
     if fileType=="HKL":
         #prepare and run XSCALE job
         if args.reference_HKL == None:
-            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters)
+            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters, resolutionRange=args.resolution_range)
         elif os.path.isfile(args.reference_HKL):
-            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters, refHKL=args.reference_HKL)
+            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous, threshold, clusterList=args.clusters, refHKL=args.reference_HKL, resolutionRange=args.resolution_range)
         else:
-            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters)
+            xscale_checker, xscale_path = CC.prepareXSCALE(anomlous,threshold, clusterList=args.clusters, resolutionRange=args.resolution_range)
         if xscale_checker == True:
             CC.scaleAndMerge(anomlous, threshold, xscale_path)
             #get jason from XSCALE
@@ -191,7 +197,7 @@ def main():
         if pointless_checker == True:
             CC.pointlessRun(anomlous, threshold, pointless_path)
             #prepare and run aimless
-            CC.aimlessRun(anomlous, threshold, pointless_path)
+            CC.aimlessRun(anomlous, threshold, pointless_path, resolutionRange=args.resolution_range)
 
         #CC.passOInfoToGA(threshold, etiquets, anomlous)
     elif fileType=="mtz":
@@ -200,7 +206,7 @@ def main():
         if pointless_checker == True:
             CC.pointlessRun(anomlous, threshold, pointless_path)
             #prepare and run aimless
-            CC.aimlessRun(anomlous, threshold, pointless_path)
+            CC.aimlessRun(anomlous, threshold, pointless_path, resolutionRange=args.resolution_range)
             CC.flatClusterPrinter(threshold, etiquets, pointless_path)
     else:
         print(f"Unknown input file format, please check the distance file: {correlationFile}")
