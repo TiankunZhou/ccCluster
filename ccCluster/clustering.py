@@ -508,6 +508,12 @@ class Clustering():
 
             #run the cad command
             subprocess.run(cad_cmd, input=cad_input, text=True, cwd=abs_run_dir)
+
+            #add freeRflag to the output mtz
+            if os.path.isfile(os.path.join(abs_run_dir, "xscale_scaled.mtz")):
+                self.add_freerflag(hklin="xscale_scaled.mtz", hklout="xscale_scaled_freeRflaged.mtz", freerfrac=0.05, workdir=abs_run_dir)
+            else:
+                print(f"{colors.RED}Error: xscale_scaled.mtz not found in {abs_run_dir}, cannot add freeRflag.{colors.ENDC}")
         
 
     def preparePointless(self, anomFlag, thr, clusterList:list=None, **kwargs):
@@ -568,6 +574,20 @@ class Clustering():
 
             return True, processing_dir_Pointless
 
+
+    #function to add freeRflag to mtz files
+    def add_freerflag(self, hklin:str, hklout:str, freerfrac:float=0.05, workdir:str="."):
+        # Construct standard input instructions
+        print(f"Adding freeRflag to {hklin}, output will be {hklout}\nFreer fraction: {freerfrac}\nWorking directory: {workdir}")
+        input_text = f"FREERFRAC {freerfrac}\nEND\n"
+
+        # Command line arguments
+        cmd = ["freerflag", "hklin", hklin, "hklout", hklout]
+
+        # Run the command
+        subprocess.run(cmd, input=input_text, text=True,  capture_output=True, check=True, cwd=workdir)
+
+        print("freerflag completed successfully!")
 
     #Run XSCALE in the pre-determined folders, not self.Rundir ().
     def scaleAndMerge(self, anomFlag, thr, run_dir:str):
